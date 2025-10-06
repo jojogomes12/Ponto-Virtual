@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema de Ponto - Painel Administrativo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ["Inter", "sans-serif"] },
+          colors: {
+            darkbg: "#0b0b0d",
+            darkcard: "#1e1f22",
+            darktext: "#e3e3e5",
+            accent: "#f97316",
+            accentHover: "#fb923c"
+          }
+        }
+      }
+    };
+  </script>
+</head>
+
+<body class="bg-darkbg min-h-screen text-darktext font-sans p-4">
+  
+  <!-- Login Admin -->
+  <div id="loginAdmin" class="flex items-center justify-center min-h-screen">
+    <div class="bg-darkcard rounded-2xl shadow-lg w-full max-w-md border border-gray-700/50 p-6">
+      <h1 class="text-2xl font-bold text-center text-accent mb-6">🔐 Painel Administrativo</h1>
+      <div class="space-y-4">
+        <input id="adminUser" type="text" placeholder="Usuário"
+          class="w-full p-3 border border-gray-700 bg-[#111113] rounded text-darktext focus:outline-none focus:border-accent transition">
+        <input id="adminPass" type="password" placeholder="Senha"
+          class="w-full p-3 border border-gray-700 bg-[#111113] rounded text-darktext focus:outline-none focus:border-accent transition">
+        <button id="loginAdminBtn"
+          class="bg-accent text-white w-full py-2.5 rounded font-semibold hover:bg-accentHover transition">
+          Entrar
+        </button>
+        <a href="index.html" class="block text-center text-gray-500 hover:text-accent text-sm transition mt-4">← Voltar para o Sistema</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Painel Admin -->
+  <div id="painelAdmin" class="hidden max-w-6xl mx-auto">
+    <div class="bg-darkcard rounded-2xl shadow-lg border border-gray-700/50 p-6 mb-6">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-accent">Painel Administrativo</h1>
+        <button id="logoutAdminBtn" class="text-red-400 hover:text-red-500 text-sm font-medium">Sair</button>
+      </div>
+
+      <!-- Abas -->
+      <div class="flex mb-6 border-b border-gray-700">
+        <button id="abaLocalConfig" class="flex-1 py-2 text-center font-medium border-b-2 border-accent text-accent">
+          Configurar Local
+        </button>
+        <button id="abaPontosUsuarios" class="flex-1 py-2 text-center font-medium border-b-2 border-transparent hover:text-accent transition">
+          Editar Pontos
+        </button>
+      </div>
+
+      <!-- Aba: Configurar Local -->
+      <div id="tabLocalConfig">
+        <h3 class="text-lg font-semibold mb-4 text-gray-300">Localização Permitida para Bater Ponto</h3>
+        
+        <div class="space-y-3 mb-4">
+          <div>
+            <label class="text-sm text-gray-400 block mb-1">Latitude:</label>
+            <input id="latInput" type="number" step="0.000001"
+              class="w-full p-3 border border-gray-700 bg-[#111113] rounded text-darktext focus:border-accent focus:outline-none">
+          </div>
+          <div>
+            <label class="text-sm text-gray-400 block mb-1">Longitude:</label>
+            <input id="lngInput" type="number" step="0.000001"
+              class="w-full p-3 border border-gray-700 bg-[#111113] rounded text-darktext focus:border-accent focus:outline-none">
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3 mb-4">
+          <button id="usarLocalAtual" class="flex-1 bg-blue-600 text-white py-2.5 rounded font-semibold hover:bg-blue-700 transition">
+            📍 Usar Localização Atual
+          </button>
+          <button id="salvarLocal" class="flex-1 bg-green-600 text-white py-2.5 rounded font-semibold hover:bg-green-700 transition">
+            💾 Salvar Local
+          </button>
+        </div>
+
+        <div class="bg-[#111113] border border-gray-700 rounded p-4">
+          <p class="text-sm text-gray-400 mb-1">Local Atual Configurado:</p>
+          <p id="localAtualTexto" class="text-accent font-mono"></p>
+        </div>
+      </div>
+
+      <!-- Aba: Editar Pontos -->
+      <div id="tabPontosUsuarios" class="hidden">
+        <h3 class="text-lg font-semibold mb-4 text-gray-300">Gerenciar Pontos dos Usuários</h3>
+        
+        <div class="mb-4">
+          <label class="text-sm text-gray-400 block mb-1">Selecione o usuário:</label>
+          <select id="selectUsuario" class="w-full p-3 border border-gray-700 bg-[#111113] rounded text-darktext focus:border-accent focus:outline-none">
+            <option value="">-- Selecione --</option>
+          </select>
+        </div>
+
+        <div id="pontosUsuarioContainer" class="hidden">
+          <div class="mb-3">
+            <label class="text-sm text-gray-400 block mb-1">Mês/Ano:</label>
+            <select id="selectMesAno" class="w-full p-3 border border-gray-700 bg-[#111113] rounded text-darktext focus:border-accent focus:outline-none">
+              <option value="">-- Selecione --</option>
+            </select>
+          </div>
+
+          <div id="listaPontosEdit" class="space-y-3 max-h-[50vh] overflow-y-auto"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="modalOverlay" class="fixed inset-0 bg-black/60 hidden justify-center items-center z-50 transition-opacity duration-300">
+    <div id="modalBox" class="bg-darkcard border border-gray-700 rounded-xl p-6 max-w-sm w-full scale-90 opacity-0 transition-all duration-300">
+      <h3 id="modalTitle" class="text-lg font-semibold mb-2 text-accent"></h3>
+      <p id="modalMessage" class="text-gray-300 mb-4 whitespace-pre-line"></p>
+      <div class="text-right">
+        <button id="closeModalBtn" class="bg-accent text-white px-4 py-1.5 rounded hover:bg-accentHover transition">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Editar Ponto -->
+  <div id="modalEditPonto" class="fixed inset-0 bg-black/60 hidden justify-center items-center z-50">
+    <div class="bg-darkcard border border-gray-700 rounded-xl p-6 max-w-md w-full">
+      <h3 class="text-lg font-semibold mb-4 text-accent">Editar Ponto</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="text-sm text-gray-400">Data:</label>
+          <input id="editData" type="text" class="w-full p-2 border border-gray-700 bg-[#111113] rounded text-darktext focus:border-accent focus:outline-none" placeholder="DD/MM/AAAA">
+        </div>
+        <div>
+          <label class="text-sm text-gray-400">Hora:</label>
+          <input id="editHora" type="text" class="w-full p-2 border border-gray-700 bg-[#111113] rounded text-darktext focus:border-accent focus:outline-none" placeholder="HH:MM:SS">
+        </div>
+        <div>
+          <label class="text-sm text-gray-400">Tipo:</label>
+          <select id="editTipo" class="w-full p-2 border border-gray-700 bg-[#111113] rounded text-darktext focus:border-accent focus:outline-none">
+            <option>Entrada da manhã</option>
+            <option>Saída para almoço</option>
+            <option>Retorno do almoço</option>
+            <option>Saída final</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-4">
+        <button id="cancelEditBtn" class="flex-1 bg-gray-600 text-white py-2 rounded font-semibold hover:bg-gray-700 transition">Cancelar</button>
+        <button id="saveEditBtn" class="flex-1 bg-green-600 text-white py-2 rounded font-semibold hover:bg-green-700 transition">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+/**********************
+ * CONFIGURAÇÃO (variáveis de ambiente simuladas)
+ **********************/
+const CONFIG = {
+  JSONBIN_API_KEY: "$2a$10$KDi5Sc6Jkhx12a3rQxYSIug08jdJNHTIU1xEq7hbeJCubqyZSQ3ii",
+  DATA_BIN_ID: "68e3c7c8d0ea881f40975071",
+  CONFIG_BIN_ID: "68e3c7b143b1c97be95c6112",
+  JSONBIN_URL: "https://api.jsonbin.io/v3/b/",
+  ADMIN_USER: "admin",
+  ADMIN_PASS: "admin123"
+};
+
+/**********************
+ * API JSONBIN
+ **********************/
+async function getBin(binId) {
+  try {
+    const res = await fetch(`${CONFIG.JSONBIN_URL}${binId}/latest`, {
+      method: "GET",
+      headers: { 
+        "X-Master-Key": CONFIG.JSONBIN_API_KEY,
+        "Content-Type": "application/json"
+      }
+    });
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Erro JSONBin:", errorText);
+      showModal("Erro", "Erro ao carregar dados. Verifique a API Key.");
+      return {};
+    }
+    const data = await res.json();
+    return data.record || {};
+  } catch (err) {
+    console.error("Erro ao ler JSONBin:", err);
+    showModal("Erro", "Falha na conexão: " + err.message);
+    return {};
+  }
+}
+
+async function updateBin(binId, content) {
+  try {
+    const res = await fetch(`${CONFIG.JSONBIN_URL}${binId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Master-Key": CONFIG.JSONBIN_API_KEY
+      },
+      body: JSON.stringify(content)
+    });
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Erro ao atualizar:", errorText);
+      showModal("Erro", "Erro ao salvar dados.");
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Erro ao atualizar JSONBin:", err);
+    showModal("Erro", "Falha ao salvar: " + err.message);
+    return false;
+  }
+}
+
+/**********************
+ * VARIÁVEIS GLOBAIS
+ **********************/
+const loginAdmin = document.getElementById("loginAdmin");
+const painelAdmin = document.getElementById("painelAdmin");
+const loginAdminBtn = document.getElementById("loginAdminBtn");
+const logoutAdminBtn = document.getElementById("logoutAdminBtn");
+const adminUser = document.getElementById("adminUser");
+const adminPass = document.getElementById("adminPass");
+
+const abaLocalConfig = document.getElementById("abaLocalConfig");
+const abaPontosUsuarios = document.getElementById("abaPontosUsuarios");
+const tabLocalConfig = document.getElementById("tabLocalConfig");
+const tabPontosUsuarios = document.getElementById("tabPontosUsuarios");
+
+const latInput = document.getElementById("latInput");
+const lngInput = document.getElementById("lngInput");
+const usarLocalAtual = document.getElementById("usarLocalAtual");
+const salvarLocal = document.getElementById("salvarLocal");
+const localAtualTexto = document.getElementById("localAtualTexto");
+
+const selectUsuario = document.getElementById("selectUsuario");
+const selectMesAno = document.getElementById("selectMesAno");
+const pontosUsuarioContainer = document.getElementById("pontosUsuarioContainer");
+const listaPontosEdit = document.getElementById("listaPontosEdit");
+
+const modalOverlay = document.getElementById("modalOverlay");
+const modalBox = document.getElementById("modalBox");
+const modalTitle = document.getElementById("modalTitle");
+const modalMessage = document.getElementById("modalMessage");
+const closeModalBtn = document.getElementById("closeModalBtn");
+
+const modalEditPonto = document.getElementById("modalEditPonto");
+const editData = document.getElementById("editData");
+const editHora = document.getElementById("editHora");
+const editTipo = document.getElementById("editTipo");
+const cancelEditBtn = document.getElementById("cancelEditBtn");
+const saveEditBtn = document.getElementById("saveEditBtn");
+
+let pontosDB = {};
+let configDB = {};
+let editandoPonto = null;
+let usuarioSelecionado = null;
+let mesAnoSelecionado = null;
+
+/**********************
+ * FUNÇÕES AUXILIARES
+ **********************/
+function showModal(title, message) {
+  modalTitle.textContent = title;
+  modalMessage.textContent = message;
+  modalOverlay.classList.remove("hidden");
+  setTimeout(() => {
+    modalOverlay.classList.add("flex");
+    modalBox.classList.remove("opacity-0", "scale-90");
+    modalBox.classList.add("opacity-100", "scale-100");
+  }, 10);
+}
+
+function closeModal() {
+  modalBox.classList.remove("opacity-100", "scale-100");
+  modalBox.classList.add("opacity-0", "scale-90");
+  setTimeout(() => {
+    modalOverlay.classList.add("hidden");
+    modalOverlay.classList.remove("flex");
+  }, 200);
+}
+
+closeModalBtn.addEventListener("click", closeModal);
+modalOverlay.addEventListener("click", (e) => { if (e.target === modalOverlay) closeModal(); });
+
+/**********************
+ * LOGIN ADMIN
+ **********************/
+loginAdminBtn.addEventListener("click", async () => {
+  const user = adminUser.value.trim();
+  const pass = adminPass.value.trim();
+
+  if (user === CONFIG.ADMIN_USER && pass === CONFIG.ADMIN_PASS) {
+    pontosDB = await getBin(CONFIG.DATA_BIN_ID);
+    configDB = await getBin(CONFIG.CONFIG_BIN_ID);
+    
+    if (!configDB.local_ponto) {
+      configDB.local_ponto = { lat: -22.970349, lng: -42.952487 };
+    }
+    
+    mostrarPainelAdmin();
+    carregarUsuarios();
+    atualizarLocalTexto();
+  } else {
+    showModal("Erro", "Usuário ou senha incorretos!");
+  }
+});
+
+logoutAdminBtn.addEventListener("click", () => {
+  loginAdmin.classList.remove("hidden");
+  painelAdmin.classList.add("hidden");
+  adminUser.value = "";
+  adminPass.value = "";
+});
+
+function mostrarPainelAdmin() {
+  loginAdmin.classList.add("hidden");
+  painelAdmin.classList.remove("hidden");
+}
+
+/**********************
+ * CONFIGURAÇÃO LOCAL
+ **********************/
+function atualizarLocalTexto() {
+  const local = configDB.local_ponto;
+  localAtualTexto.textContent = `Lat: ${local.lat.toFixed(6)}, Lng: ${local.lng.toFixed(6)}`;
+  latInput.value = local.lat;
+  lngInput.value = local.lng;
+}
+
+usarLocalAtual.addEventListener("click", () => {
+  if (!navigator.geolocation) return showModal("Erro", "Seu navegador não suporta geolocalização!");
+  navigator.geolocation.getCurrentPosition((pos) => {
+    latInput.value = pos.coords.latitude.toFixed(6);
+    lngInput.value = pos.coords.longitude.toFixed(6);
+  }, (err) => showModal("Erro", "Erro ao capturar localização: " + err.message));
+});
+
+salvarLocal.addEventListener("click", async () => {
+  const lat = parseFloat(latInput.value);
+  const lng = parseFloat(lngInput.value);
+  if (isNaN(lat) || isNaN(lng)) return showModal("Erro", "Preencha valores válidos.");
+  
+  configDB.local_ponto = { lat, lng };
+  const sucesso = await updateBin(CONFIG.CONFIG_BIN_ID, configDB);
+  if (sucesso) {
+    showModal("Sucesso", "✅ Local de ponto atualizado!");
+    atualizarLocalTexto();
+  }
+});
+
+/**********************
+ * GERENCIAR PONTOS
+ **********************/
+function carregarUsuarios() {
+  selectUsuario.innerHTML = '<option value="">-- Selecione --</option>';
+  Object.keys(pontosDB).forEach(usuario => {
+    const option = document.createElement("option");
+    option.value = usuario;
+    option.textContent = usuario;
+    selectUsuario.appendChild(option);
+  });
+}
+
+selectUsuario.addEventListener("change", (e) => {
+  usuarioSelecionado = e.target.value;
+  if (!usuarioSelecionado) {
+    pontosUsuarioContainer.classList.add("hidden");
+    return;
+  }
+  
+  carregarMesesUsuario();
+  pontosUsuarioContainer.classList.remove("hidden");
+});
+
+function carregarMesesUsuario() {
+  selectMesAno.innerHTML = '<option value="">-- Selecione --</option>';
+  const meses = Object.keys(pontosDB[usuarioSelecionado] || {});
+  meses.forEach(mes => {
+    const option = document.createElement("option");
+    option.value = mes;
+    option.textContent = mes;
+    selectMesAno.appendChild(option);
+  });
+}
+
+selectMesAno.addEventListener("change", (e) => {
+  mesAnoSelecionado = e.target.value;
+  if (!mesAnoSelecionado) {
+    listaPontosEdit.innerHTML = "";
+    return;
+  }
+  renderizarPontos();
+});
+
+function renderizarPontos() {
+  listaPontosEdit.innerHTML = "";
+  const pontos = pontosDB[usuarioSelecionado][mesAnoSelecionado] || [];
+  
+  if (pontos.length === 0) {
+    listaPontosEdit.innerHTML = '<p class="text-gray-500 text-center">Nenhum ponto registrado.</p>';
+    return;
+  }
+
+  pontos.forEach((ponto, index) => {
+    const card = document.createElement("div");
+    card.className = "bg-[#111113] border border-gray-700 rounded p-4 flex justify-between items-center";
+    card.innerHTML = `
+      <div>
+        <p class="text-accent font-semibold">${ponto.data} - ${ponto.hora}</p>
+        <p class="text-sm text-gray-400">${ponto.tipo}</p>
+        <p class="text-xs text-gray-600">Lat: ${ponto.lat}, Lng: ${ponto.lng}</p>
+      </div>
+      <div class="flex gap-2">
+        <button class="editarPontoBtn bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm" data-index="${index}">
+          ✏️ Editar
+        </button>
+        <button class="deletarPontoBtn bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-sm" data-index="${index}">
+          🗑️ Deletar
+        </button>
+      </div>
+    `;
+    listaPontosEdit.appendChild(card);
+  });
+
+  document.querySelectorAll(".editarPontoBtn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const index = parseInt(e.target.closest("button").dataset.index);
+      abrirModalEdicao(index);
+    });
+  });
+
+  document.querySelectorAll(".deletarPontoBtn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const index = parseInt(e.target.closest("button").dataset.index);
+      deletarPonto(index);
+    });
+  });
+}
+
+function abrirModalEdicao(index) {
+  const ponto = pontosDB[usuarioSelecionado][mesAnoSelecionado][index];
+  editandoPonto = index;
+  editData.value = ponto.data;
+  editHora.value = ponto.hora;
+  editTipo.value = ponto.tipo;
+  modalEditPonto.classList.remove("hidden");
+  modalEditPonto.classList.add("flex");
+}
+
+cancelEditBtn.addEventListener("click", () => {
+  modalEditPonto.classList.add("hidden");
+  modalEditPonto.classList.remove("flex");
+  editandoPonto = null;
+});
+
+saveEditBtn.addEventListener("click", async () => {
+  if (editandoPonto === null) return;
+  
+  const ponto = pontosDB[usuarioSelecionado][mesAnoSelecionado][editandoPonto];
+  ponto.data = editData.value;
+  ponto.hora = editHora.value;
+  ponto.tipo = editTipo.value;
+  
+  const sucesso = await updateBin(CONFIG.DATA_BIN_ID, pontosDB);
+  if (sucesso) {
+    showModal("Sucesso", "✅ Ponto atualizado!");
+    renderizarPontos();
+    modalEditPonto.classList.add("hidden");
+    modalEditPonto.classList.remove("flex");
+    editandoPonto = null;
+  }
+});
+
+async function deletarPonto(index) {
+  if (!confirm("Tem certeza que deseja deletar este ponto?")) return;
+  
+  pontosDB[usuarioSelecionado][mesAnoSelecionado].splice(index, 1);
+  const sucesso = await updateBin(CONFIG.DATA_BIN_ID, pontosDB);
+  if (sucesso) {
+    showModal("Sucesso", "✅ Ponto deletado!");
+    renderizarPontos();
+  }
+}
+
+/**********************
+ * ALTERNÂNCIA DE ABAS
+ **********************/
+abaLocalConfig.addEventListener("click", () => {
+  abaLocalConfig.classList.add("border-accent", "text-accent");
+  abaPontosUsuarios.classList.remove("border-accent", "text-accent");
+  abaPontosUsuarios.classList.add("border-transparent");
+  tabLocalConfig.classList.remove("hidden");
+  tabPontosUsuarios.classList.add("hidden");
+});
+
+abaPontosUsuarios.addEventListener("click", () => {
+  abaPontosUsuarios.classList.add("border-accent", "text-accent");
+  abaLocalConfig.classList.remove("border-accent", "text-accent");
+  abaLocalConfig.classList.add("border-transparent");
+  tabPontosUsuarios.classList.remove("hidden");
+  tabLocalConfig.classList.add("hidden");
+});
+</script>
+</body>
+</html>
