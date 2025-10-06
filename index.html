@@ -8,7 +8,7 @@
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Fonte: Inter -->
+  <!-- Fonte -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <script>
@@ -50,16 +50,50 @@
         <button id="logoutBtn" class="text-red-400 hover:text-red-500 text-sm font-medium">Trocar usuário</button>
       </div>
 
-      <div class="mb-5 text-center">
-        <button id="pontoBtn"
-          class="bg-accent text-white px-5 py-2.5 rounded font-semibold hover:bg-accentHover transition w-full sm:w-auto">
-          Bater Ponto
-        </button>
-        <p id="statusMsg" class="text-sm text-gray-400 mt-2"></p>
+      <!-- Navegação entre abas -->
+      <div class="flex mb-5 border-b border-gray-700">
+        <button id="abaPonto" class="flex-1 py-2 text-center font-medium border-b-2 border-accent text-accent">Ponto</button>
+        <button id="abaConfig" class="flex-1 py-2 text-center font-medium border-b-2 border-transparent hover:text-accent transition">Configurações</button>
       </div>
 
-      <h3 class="text-md font-semibold mb-2 text-gray-300">Pontos do mês</h3>
-      <div id="pontosGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto"></div>
+      <!-- Aba: Ponto -->
+      <div id="tabPonto">
+        <div class="mb-5 text-center">
+          <button id="pontoBtn"
+            class="bg-accent text-white px-5 py-2.5 rounded font-semibold hover:bg-accentHover transition w-full sm:w-auto">
+            Bater Ponto
+          </button>
+          <p id="statusMsg" class="text-sm text-gray-400 mt-2"></p>
+        </div>
+
+        <h3 class="text-md font-semibold mb-2 text-gray-300">Pontos do mês</h3>
+        <div id="pontosGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto"></div>
+      </div>
+
+      <!-- Aba: Configurações -->
+      <div id="tabConfig" class="hidden">
+        <h3 class="text-md font-semibold mb-3 text-gray-300">Localização do ponto permitido</h3>
+
+        <div class="space-y-3 mb-4">
+          <div>
+            <label class="text-sm text-gray-400">Latitude:</label>
+            <input id="latInput" type="number" step="0.000001"
+              class="w-full p-2 border border-gray-700 bg-[#111113] rounded text-darktext focus:border-accent focus:outline-none">
+          </div>
+          <div>
+            <label class="text-sm text-gray-400">Longitude:</label>
+            <input id="lngInput" type="number" step="0.000001"
+              class="w-full p-2 border border-gray-700 bg-[#111113] rounded text-darktext focus:border-accent focus:outline-none">
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3">
+          <button id="usarLocalAtual" class="flex-1 bg-accent text-white py-2 rounded font-semibold hover:bg-accentHover transition">Usar Local Atual</button>
+          <button id="salvarLocal" class="flex-1 bg-green-600 text-white py-2 rounded font-semibold hover:bg-green-700 transition">Salvar</button>
+        </div>
+
+        <p id="localAtualTexto" class="text-sm text-gray-400 mt-3 text-center"></p>
+      </div>
     </div>
   </div>
 
@@ -83,18 +117,38 @@
     const pontosGrid = document.getElementById("pontosGrid");
     const welcomeUser = document.getElementById("welcomeUser");
     const statusMsg = document.getElementById("statusMsg");
-
     const modalOverlay = document.getElementById("modalOverlay");
     const modalBox = document.getElementById("modalBox");
     const modalTitle = document.getElementById("modalTitle");
     const modalMessage = document.getElementById("modalMessage");
     const closeModalBtn = document.getElementById("closeModalBtn");
 
+    const abaPonto = document.getElementById("abaPonto");
+    const abaConfig = document.getElementById("abaConfig");
+    const tabPonto = document.getElementById("tabPonto");
+    const tabConfig = document.getElementById("tabConfig");
+
+    const latInput = document.getElementById("latInput");
+    const lngInput = document.getElementById("lngInput");
+    const usarLocalAtual = document.getElementById("usarLocalAtual");
+    const salvarLocal = document.getElementById("salvarLocal");
+    const localAtualTexto = document.getElementById("localAtualTexto");
+
     let currentUser = null;
     const usuariosPermitidos = ["joao", "ingrid"];
-    const localPermitido = { lat: -22.970349325482346, lng: -42.95248794047665 };
     const raioPermitido = 10;
     const etapas = ["Entrada da manhã", "Saída para almoço", "Retorno do almoço", "Saída final"];
+
+    // Funções utilitárias
+    const getLocalPermitido = () => JSON.parse(localStorage.getItem("local_ponto")) || { lat: -22.970349325482346, lng: -42.95248794047665 };
+    const saveLocalPermitido = (lat, lng) => localStorage.setItem("local_ponto", JSON.stringify({ lat, lng }));
+
+    function atualizarLocalTexto() {
+      const local = getLocalPermitido();
+      localAtualTexto.textContent = `Local permitido: Lat ${local.lat.toFixed(6)}, Lng ${local.lng.toFixed(6)}`;
+      latInput.value = local.lat;
+      lngInput.value = local.lng;
+    }
 
     function showModal(title, message) {
       modalTitle.textContent = title;
@@ -141,6 +195,7 @@
       mainSection.classList.remove("hidden");
       welcomeUser.textContent = "Usuário: " + currentUser;
       renderPontos();
+      atualizarLocalTexto();
     }
 
     function showLogin() {
@@ -149,6 +204,43 @@
       pontosGrid.innerHTML = "";
     }
 
+    // Alternar abas
+    abaPonto.addEventListener("click", () => {
+      abaPonto.classList.add("border-accent", "text-accent");
+      abaConfig.classList.remove("border-accent", "text-accent");
+      tabPonto.classList.remove("hidden");
+      tabConfig.classList.add("hidden");
+    });
+
+    abaConfig.addEventListener("click", () => {
+      abaConfig.classList.add("border-accent", "text-accent");
+      abaPonto.classList.remove("border-accent", "text-accent");
+      tabConfig.classList.remove("hidden");
+      tabPonto.classList.add("hidden");
+      atualizarLocalTexto();
+    });
+
+    // Salvar nova localização
+    salvarLocal.addEventListener("click", () => {
+      const lat = parseFloat(latInput.value);
+      const lng = parseFloat(lngInput.value);
+      if (isNaN(lat) || isNaN(lng)) return showModal("Erro", "Preencha valores válidos de latitude e longitude.");
+      saveLocalPermitido(lat, lng);
+      showModal("Sucesso", "📍 Local de ponto atualizado com sucesso!");
+      atualizarLocalTexto();
+    });
+
+    // Usar localização atual
+    usarLocalAtual.addEventListener("click", () => {
+      if (!navigator.geolocation) return showModal("Erro", "Seu navegador não suporta geolocalização!");
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const { latitude, longitude } = pos.coords;
+        latInput.value = latitude.toFixed(6);
+        lngInput.value = longitude.toFixed(6);
+      }, (err) => showModal("Erro", "Erro ao capturar localização: " + err.message));
+    });
+
+    // Banco de dados de pontos
     function getDatabase() { return JSON.parse(localStorage.getItem("pontos_db")) || {}; }
     function saveDatabase(db) { localStorage.setItem("pontos_db", JSON.stringify(db)); }
     function getUserMonthKey() { return new Date().toLocaleString("pt-BR", { month: "2-digit", year: "numeric" }).replace("/", "-"); }
@@ -165,11 +257,12 @@
     }
 
     pontoBtn.addEventListener("click", () => {
+      const localPermitido = getLocalPermitido();
       if (!navigator.geolocation) return showModal("Erro", "Seu navegador não suporta geolocalização!");
       navigator.geolocation.getCurrentPosition((pos) => {
         const { latitude, longitude } = pos.coords;
         const distancia = calcularDistancia(latitude, longitude, localPermitido.lat, localPermitido.lng);
-        const distanciaFormatada = distancia < 1000 ? `${distancia.toFixed(2)} metros` : `${(distancia/1000).toFixed(3)} km`;
+        const distanciaFormatada = distancia < 1000 ? `${distancia.toFixed(2)} metros` : `${(distancia / 1000).toFixed(3)} km`;
         if (distancia > raioPermitido) showModal("Fora do ponto", `Você está fora do ponto permitido.\nDistância: ${distanciaFormatada}`);
         else { registrarPonto(latitude, longitude); showModal("Sucesso", `✅ Dentro do ponto!\nDistância: ${distanciaFormatada}`); }
       }, (err) => showModal("Erro", "Erro ao capturar localização: " + err.message));
@@ -203,21 +296,19 @@
       const userData = db[currentUser]?.[mesAno] || [];
 
       pontosGrid.innerHTML = "";
-      if (userData.length === 0) { 
-        pontosGrid.innerHTML = `<div class="text-gray-500 text-center col-span-full">Nenhum ponto registrado neste mês.</div>`; 
-        statusMsg.textContent = ""; 
-        return; 
+      if (userData.length === 0) {
+        pontosGrid.innerHTML = `<div class="text-gray-500 text-center col-span-full">Nenhum ponto registrado neste mês.</div>`;
+        statusMsg.textContent = "";
+        return;
       }
 
-      // Agrupa por data
       const pontosPorDia = {};
       userData.forEach(p => {
         if (!pontosPorDia[p.data]) pontosPorDia[p.data] = [];
         pontosPorDia[p.data].push(p);
       });
 
-      // Ordena por dia
-      Object.keys(pontosPorDia).sort((a,b)=> new Date(a)-new Date(b)).forEach(dia => {
+      Object.keys(pontosPorDia).sort((a, b) => new Date(a) - new Date(b)).forEach(dia => {
         const card = document.createElement("div");
         card.className = "border border-gray-700/60 p-3 rounded bg-[#141416]";
         const pontosDia = pontosPorDia[dia];
@@ -228,11 +319,10 @@
         pontosGrid.appendChild(card);
       });
 
-      // Status do dia atual
       const hoje = new Date().toLocaleDateString("pt-BR");
       const pontosHoje = userData.filter(p => p.data === hoje);
       const restante = 4 - pontosHoje.length;
-      statusMsg.textContent = restante > 0 ? `Faltam ${restante} ponto${restante>1?"s":""} hoje.` : "✅ Todos os pontos de hoje foram registrados.";
+      statusMsg.textContent = restante > 0 ? `Faltam ${restante} ponto${restante > 1 ? "s" : ""} hoje.` : "✅ Todos os pontos de hoje foram registrados.";
     }
 
     showLogin();
