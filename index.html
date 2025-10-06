@@ -4,13 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sistema de Ponto - Localização Verificada</title>
-
-  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Fonte -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
   <script>
     tailwind.config = {
       theme: {
@@ -50,51 +45,25 @@
         <button id="logoutBtn" class="text-red-400 hover:text-red-500 text-sm font-medium">Trocar usuário</button>
       </div>
 
-      <!-- Navegação entre abas -->
-      <div class="flex mb-5 border-b border-gray-700">
-        <button id="abaPonto" class="flex-1 py-2 text-center font-medium border-b-2 border-accent text-accent">Ponto</button>
-        <button id="abaConfig" class="flex-1 py-2 text-center font-medium border-b-2 border-transparent hover:text-accent transition">Configurações</button>
+      <div class="mb-5 text-center">
+        <button id="pontoBtn"
+          class="bg-accent text-white px-5 py-2.5 rounded font-semibold hover:bg-accentHover transition w-full sm:w-auto">
+          Bater Ponto
+        </button>
+        <p id="statusMsg" class="text-sm text-gray-400 mt-2"></p>
       </div>
 
-      <!-- Aba: Ponto -->
-      <div id="tabPonto">
-        <div class="mb-5 text-center">
-          <button id="pontoBtn"
-            class="bg-accent text-white px-5 py-2.5 rounded font-semibold hover:bg-accentHover transition w-full sm:w-auto">
-            Bater Ponto
-          </button>
-          <p id="statusMsg" class="text-sm text-gray-400 mt-2"></p>
-        </div>
-
-        <h3 class="text-md font-semibold mb-2 text-gray-300">Pontos do mês</h3>
-        <div id="pontosGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto"></div>
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-md font-semibold text-gray-300">Pontos do mês</h3>
+        <p id="localAtualTexto" class="text-xs text-gray-500"></p>
       </div>
-
-      <!-- Aba: Configurações -->
-      <div id="tabConfig" class="hidden">
-        <h3 class="text-md font-semibold mb-3 text-gray-300">Localização do ponto permitido</h3>
-
-        <div class="space-y-3 mb-4">
-          <div>
-            <label class="text-sm text-gray-400">Latitude:</label>
-            <input id="latInput" type="number" step="0.000001"
-              class="w-full p-2 border border-gray-700 bg-[#111113] rounded text-darktext focus:border-accent focus:outline-none">
-          </div>
-          <div>
-            <label class="text-sm text-gray-400">Longitude:</label>
-            <input id="lngInput" type="number" step="0.000001"
-              class="w-full p-2 border border-gray-700 bg-[#111113] rounded text-darktext focus:border-accent focus:outline-none">
-          </div>
-        </div>
-
-        <div class="flex flex-col sm:flex-row gap-3">
-          <button id="usarLocalAtual" class="flex-1 bg-accent text-white py-2 rounded font-semibold hover:bg-accentHover transition">Usar Local Atual</button>
-          <button id="salvarLocal" class="flex-1 bg-green-600 text-white py-2 rounded font-semibold hover:bg-green-700 transition">Salvar</button>
-        </div>
-
-        <p id="localAtualTexto" class="text-sm text-gray-400 mt-3 text-center"></p>
-      </div>
+      <div id="pontosGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto"></div>
     </div>
+  </div>
+
+  <!-- Link para Admin -->
+  <div class="text-center mt-4">
+    <a href="admin.html" class="text-gray-500 hover:text-accent text-sm transition">Área Administrativa</a>
   </div>
 
   <!-- Modal -->
@@ -109,35 +78,50 @@
   </div>
 
   <script>
- /**********************
- * CONFIGURAÇÃO JSONBIN
+/**********************
+ * CONFIGURAÇÃO
  **********************/
-const JSONBIN_API_KEY = "$2a$10$1KDuMGmeGdLh/nHKMg8E3eJtKWvySp2wHulgjDiOVwsPrbHf/RDFe"; 
-const DATA_BIN_ID = "68e3c7c8d0ea881f40975071";       
-const CONFIG_BIN_ID = "68e3c7b143b1c97be95c6112";   
+const CONFIG = {
+  JSONBIN_API_KEY: "$2a$10$KDi5Sc6Jkhx12a3rQxYSIug08jdJNHTIU1xEq7hbeJCubqyZSQ3ii",
+  DATA_BIN_ID: "68e3c7c8d0ea881f40975071",
+  CONFIG_BIN_ID: "68e3c7b143b1c97be95c6112",
+  JSONBIN_URL: "https://api.jsonbin.io/v3/b/"
+};
 
-const JSONBIN_URL = "https://api.jsonbin.io/v3/b/";
-
+/**********************
+ * API JSONBIN
+ **********************/
 async function getBin(binId) {
   try {
-    const res = await fetch(`${JSONBIN_URL}${binId}/latest`, {
-      headers: { "X-Master-Key": JSONBIN_API_KEY }
+    const res = await fetch(`${CONFIG.JSONBIN_URL}${binId}/latest`, {
+      method: "GET",
+      headers: { 
+        "X-Master-Key": CONFIG.JSONBIN_API_KEY,
+        "Content-Type": "application/json"
+      }
     });
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Erro JSONBin:", errorText);
+      showModal("Erro", "Erro ao carregar dados. Verifique a API Key.");
+      return {};
+    }
     const data = await res.json();
     return data.record || {};
   } catch (err) {
     console.error("Erro ao ler JSONBin:", err);
+    showModal("Erro", "Falha na conexão: " + err.message);
     return {};
   }
 }
 
 async function updateBin(binId, content) {
   try {
-    const res = await fetch(`${JSONBIN_URL}${binId}`, {
+    const res = await fetch(`${CONFIG.JSONBIN_URL}${binId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "X-Master-Key": JSONBIN_API_KEY
+        "X-Master-Key": CONFIG.JSONBIN_API_KEY
       },
       body: JSON.stringify(content)
     });
@@ -159,28 +143,24 @@ const pontoBtn = document.getElementById("pontoBtn");
 const pontosGrid = document.getElementById("pontosGrid");
 const welcomeUser = document.getElementById("welcomeUser");
 const statusMsg = document.getElementById("statusMsg");
+const localAtualTexto = document.getElementById("localAtualTexto");
 const modalOverlay = document.getElementById("modalOverlay");
 const modalBox = document.getElementById("modalBox");
 const modalTitle = document.getElementById("modalTitle");
 const modalMessage = document.getElementById("modalMessage");
 const closeModalBtn = document.getElementById("closeModalBtn");
 
-const abaPonto = document.getElementById("abaPonto");
-const abaConfig = document.getElementById("abaConfig");
-const tabPonto = document.getElementById("tabPonto");
-const tabConfig = document.getElementById("tabConfig");
-
-const latInput = document.getElementById("latInput");
-const lngInput = document.getElementById("lngInput");
-const usarLocalAtual = document.getElementById("usarLocalAtual");
-const salvarLocal = document.getElementById("salvarLocal");
-const localAtualTexto = document.getElementById("localAtualTexto");
-
 let currentUser = null;
-let pontosDB = {}; 
-let configDB = {}; 
+let pontosDB = {};
+let configDB = {};
 
-const usuariosPermitidos = ["joao", "ingrid"];
+const usuarios = {
+  joao: "João",
+  ingrid: "Ingrid",
+  viviane: "Viviane",
+  admin: "Administrador"
+};
+
 const raioPermitido = 10;
 const etapas = ["Entrada da manhã", "Saída para almoço", "Retorno do almoço", "Saída final"];
 
@@ -227,49 +207,22 @@ const calcularDistancia = (lat1, lon1, lat2, lon2) => {
  * FUNÇÕES DE CONFIG
  **********************/
 async function carregarConfig() {
-  configDB = await getBin(CONFIG_BIN_ID);
+  configDB = await getBin(CONFIG.CONFIG_BIN_ID);
   if (!configDB.local_ponto) {
     configDB.local_ponto = { lat: -22.970349, lng: -42.952487 };
-    await updateBin(CONFIG_BIN_ID, configDB);
+    await updateBin(CONFIG.CONFIG_BIN_ID, configDB);
   }
   atualizarLocalTexto();
 }
 
 function atualizarLocalTexto() {
   const local = configDB.local_ponto;
-  localAtualTexto.textContent = `Local permitido: Lat ${local.lat.toFixed(6)}, Lng ${local.lng.toFixed(6)}`;
-  latInput.value = local.lat;
-  lngInput.value = local.lng;
+  localAtualTexto.textContent = `Local: ${local.lat.toFixed(4)}, ${local.lng.toFixed(4)}`;
 }
-
-salvarLocal.addEventListener("click", async () => {
-  const lat = parseFloat(latInput.value);
-  const lng = parseFloat(lngInput.value);
-  if (isNaN(lat) || isNaN(lng)) return showModal("Erro", "Preencha valores válidos.");
-  configDB.local_ponto = { lat, lng };
-  await updateBin(CONFIG_BIN_ID, configDB);
-  showModal("Sucesso", " Local de ponto atualizado!");
-  atualizarLocalTexto();
-});
-
-usarLocalAtual.addEventListener("click", () => {
-  if (!navigator.geolocation) return showModal("Erro", "Seu navegador não suporta geolocalização!");
-  navigator.geolocation.getCurrentPosition((pos) => {
-    latInput.value = pos.coords.latitude.toFixed(6);
-    lngInput.value = pos.coords.longitude.toFixed(6);
-  }, (err) => showModal("Erro", "Erro ao capturar localização: " + err.message));
-});
 
 /**********************
  * FUNÇÕES DE LOGIN
  **********************/
-const usuarios = {
-  joao: "João",
-  ingrid: "Ingrid",
-  viviane: "Viviane",   // Exemplo de novo usuário
-  admin: "admin"    // Outro exemplo
-};
-
 loginBtn.addEventListener("click", async () => {
   const usernameInput = document.getElementById("username").value;
   const usernameNormalizado = normalizarTexto(usernameInput);
@@ -277,13 +230,12 @@ loginBtn.addEventListener("click", async () => {
   if (!usernameInput) return showModal("Atenção", "Digite seu nome para continuar!");
   if (!usuarios[usernameNormalizado]) return showModal("Usuário inválido", "Acesso não permitido.");
 
-  currentUser = usuarios[usernameNormalizado];  // Nome formatado
+  currentUser = usuarios[usernameNormalizado];
   document.getElementById("username").value = "";
 
-  pontosDB = await getBin(DATA_BIN_ID);
+  pontosDB = await getBin(CONFIG.DATA_BIN_ID);
   showMain();
 });
-
 
 logoutBtn.addEventListener("click", () => {
   currentUser = null;
@@ -295,7 +247,6 @@ function showMain() {
   mainSection.classList.remove("hidden");
   welcomeUser.textContent = "Usuário: " + currentUser;
   renderPontos();
-  atualizarLocalTexto();
 }
 
 function showLogin() {
@@ -318,7 +269,7 @@ pontoBtn.addEventListener("click", () => {
     const { latitude, longitude } = pos.coords;
     const distancia = calcularDistancia(latitude, longitude, localPermitido.lat, localPermitido.lng);
     if (distancia > raioPermitido) {
-      showModal("Fora do ponto", `Você está fora do ponto (${distancia.toFixed(2)}m)`);
+      showModal("Fora do ponto", `Você está fora do ponto (${distancia.toFixed(2)}m de distância)`);
     } else {
       registrarPonto(latitude, longitude);
     }
@@ -342,7 +293,7 @@ async function registrarPonto(latitude, longitude) {
 
   pontos.push({ data: hoje, hora, tipo, lat: latitude.toFixed(6), lng: longitude.toFixed(6) });
 
-  await updateBin(DATA_BIN_ID, pontosDB);
+  await updateBin(CONFIG.DATA_BIN_ID, pontosDB);
   renderPontos();
   showModal("Sucesso", "✅ Ponto registrado com sucesso!");
 }
@@ -365,7 +316,11 @@ function renderPontos() {
     pontosPorDia[p.data].push(p);
   });
 
-  Object.keys(pontosPorDia).sort((a, b) => new Date(a) - new Date(b)).forEach(dia => {
+  Object.keys(pontosPorDia).sort((a, b) => {
+    const [diaA, mesA, anoA] = a.split('/');
+    const [diaB, mesB, anoB] = b.split('/');
+    return new Date(anoB, mesB - 1, diaB) - new Date(anoA, mesA - 1, diaA);
+  }).forEach(dia => {
     const card = document.createElement("div");
     card.className = "border border-gray-700/60 p-3 rounded bg-[#141416]";
     const pontosDia = pontosPorDia[dia];
@@ -385,30 +340,10 @@ function renderPontos() {
 }
 
 /**********************
- * ALTERNÂNCIA DE ABAS
- **********************/
-abaPonto.addEventListener("click", () => {
-  abaPonto.classList.add("border-accent", "text-accent");
-  abaConfig.classList.remove("border-accent", "text-accent");
-  abaConfig.classList.add("border-transparent");
-
-  tabPonto.classList.remove("hidden");
-  tabConfig.classList.add("hidden");
-});
-
-abaConfig.addEventListener("click", () => {
-  abaConfig.classList.add("border-accent", "text-accent");
-  abaPonto.classList.remove("border-accent", "text-accent");
-  abaPonto.classList.add("border-transparent");
-
-  tabConfig.classList.remove("hidden");
-  tabPonto.classList.add("hidden");
-});
-
-/**********************
  * INICIALIZAÇÃO
  **********************/
 carregarConfig();
 showLogin();
-
 </script>
+</body>
+</html>
