@@ -112,7 +112,7 @@
  /**********************
  * CONFIGURAÇÃO JSONBIN
  **********************/
-const JSONBIN_API_KEY = "$2a$10$KDi5Sc6Jkhx12a3rQxYSIug08jdJNHTIU1xEq7hbeJCubqyZSQ3ii"; 
+const JSONBIN_API_KEY = "$2a$10$1KDuMGmeGdLh/nHKMg8E3eJtKWvySp2wHulgjDiOVwsPrbHf/RDFe"; 
 const DATA_BIN_ID = "68e3c7c8d0ea881f40975071";       
 const CONFIG_BIN_ID = "68e3c7b143b1c97be95c6112";   
 
@@ -248,7 +248,7 @@ salvarLocal.addEventListener("click", async () => {
   if (isNaN(lat) || isNaN(lng)) return showModal("Erro", "Preencha valores válidos.");
   configDB.local_ponto = { lat, lng };
   await updateBin(CONFIG_BIN_ID, configDB);
-  showModal("Sucesso", "📍 Local de ponto atualizado!");
+  showModal("Sucesso", " Local de ponto atualizado!");
   atualizarLocalTexto();
 });
 
@@ -263,17 +263,27 @@ usarLocalAtual.addEventListener("click", () => {
 /**********************
  * FUNÇÕES DE LOGIN
  **********************/
+const usuarios = {
+  joao: "João",
+  ingrid: "Ingrid",
+  viviane: "Viviane",   // Exemplo de novo usuário
+  admin: "admin"    // Outro exemplo
+};
+
 loginBtn.addEventListener("click", async () => {
   const usernameInput = document.getElementById("username").value;
   const usernameNormalizado = normalizarTexto(usernameInput);
-  if (!usernameInput) return showModal("Atenção", "Digite seu nome para continuar!");
-  if (!usuariosPermitidos.includes(usernameNormalizado)) return showModal("Usuário inválido", "Acesso permitido apenas para João ou Ingrid.");
 
-  currentUser = usernameNormalizado === "joao" ? "João" : "Ingrid";
+  if (!usernameInput) return showModal("Atenção", "Digite seu nome para continuar!");
+  if (!usuarios[usernameNormalizado]) return showModal("Usuário inválido", "Acesso não permitido.");
+
+  currentUser = usuarios[usernameNormalizado];  // Nome formatado
   document.getElementById("username").value = "";
+
   pontosDB = await getBin(DATA_BIN_ID);
   showMain();
 });
+
 
 logoutBtn.addEventListener("click", () => {
   currentUser = null;
