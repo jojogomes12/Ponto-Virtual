@@ -25,7 +25,7 @@
 </head>
 
 <body class="bg-darkbg min-h-screen text-darktext font-sans p-4">
-  
+
   <!-- Login Admin -->
   <div id="loginAdmin" class="flex items-center justify-center min-h-screen">
     <div class="bg-darkcard rounded-2xl shadow-lg w-full max-w-md border border-gray-700/50 p-6">
@@ -68,30 +68,23 @@
         
         <div class="space-y-3 mb-4">
           <div>
-            <label class="text-sm text-gray-400 block mb-1">Latitude:</label>
-            <input id="latInput" type="number" step="0.000001"
+            <label class="text-sm text-gray-400 block mb-1">Endereço:</label>
+            <input id="enderecoInput" type="text" placeholder="Digite um endereço ou local"
               class="w-full p-3 border border-gray-700 bg-[#111113] rounded text-darktext focus:border-accent focus:outline-none">
-          </div>
-          <div>
-            <label class="text-sm text-gray-400 block mb-1">Longitude:</label>
-            <input id="lngInput" type="number" step="0.000001"
-              class="w-full p-3 border border-gray-700 bg-[#111113] rounded text-darktext focus:border-accent focus:outline-none">
+            <ul id="autocompleteResults" class="bg-[#111113] border border-gray-700 rounded mt-1 max-h-48 overflow-y-auto hidden"></ul>
           </div>
         </div>
 
         <div class="flex flex-col sm:flex-row gap-3 mb-4">
           <button id="usarLocalAtual" class="flex-1 bg-blue-600 text-white py-2.5 rounded font-semibold hover:bg-blue-700 transition">
-            📍 Usar Localização Atual
+             Usar Localização Atual
           </button>
           <button id="salvarLocal" class="flex-1 bg-green-600 text-white py-2.5 rounded font-semibold hover:bg-green-700 transition">
-            💾 Salvar Local
+             Salvar Local
           </button>
         </div>
 
-        <div class="bg-[#111113] border border-gray-700 rounded p-4">
-          <p class="text-sm text-gray-400 mb-1">Local Atual Configurado:</p>
-          <p id="localAtualTexto" class="text-accent font-mono"></p>
-        </div>
+        <div id="localAtualTexto" class="bg-[#111113] border border-gray-700 rounded p-4 text-sm text-gray-300"></div>
       </div>
 
       <!-- Aba: Editar Pontos -->
@@ -113,7 +106,7 @@
             </select>
           </div>
 
-          <div id="listaPontosEdit" class="space-y-3 max-h-[50vh] overflow-y-auto"></div>
+          <div id="listaPontosEdit" class="space-y-3 max-h-[60vh] overflow-y-auto"></div>
         </div>
       </div>
     </div>
@@ -130,39 +123,34 @@
     </div>
   </div>
 
-  <!-- Modal Editar Ponto -->
-  <div id="modalEditPonto" class="fixed inset-0 bg-black/60 hidden justify-center items-center z-50">
-    <div class="bg-darkcard border border-gray-700 rounded-xl p-6 max-w-md w-full">
-      <h3 class="text-lg font-semibold mb-4 text-accent">Editar Ponto</h3>
-      <div class="space-y-3">
-        <div>
-          <label class="text-sm text-gray-400">Data:</label>
-          <input id="editData" type="text" class="w-full p-2 border border-gray-700 bg-[#111113] rounded text-darktext focus:border-accent focus:outline-none" placeholder="DD/MM/AAAA">
-        </div>
-        <div>
-          <label class="text-sm text-gray-400">Hora:</label>
-          <input id="editHora" type="text" class="w-full p-2 border border-gray-700 bg-[#111113] rounded text-darktext focus:border-accent focus:outline-none" placeholder="HH:MM:SS">
-        </div>
-        <div>
-          <label class="text-sm text-gray-400">Tipo:</label>
-          <select id="editTipo" class="w-full p-2 border border-gray-700 bg-[#111113] rounded text-darktext focus:border-accent focus:outline-none">
-            <option>Entrada da manhã</option>
-            <option>Saída para almoço</option>
-            <option>Retorno do almoço</option>
-            <option>Saída final</option>
-          </select>
-        </div>
+  <!-- Modal Editar Dia -->
+  <div id="modalEditDia" class="fixed inset-0 bg-black/60 hidden justify-center items-center z-50">
+    <div class="bg-darkcard border border-gray-700 rounded-xl p-6 max-w-2xl w-full">
+      <h3 class="text-lg font-semibold mb-4 text-accent">Editar Pontos do Dia</h3>
+      <p id="modalEditDiaData" class="text-gray-400 mb-4"></p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left border border-gray-700 rounded-lg">
+          <thead class="bg-[#111113] text-gray-300">
+            <tr>
+              <th class="px-3 py-2 border-b border-gray-700">Hora</th>
+              <th class="px-3 py-2 border-b border-gray-700">Tipo</th>
+              <th class="px-3 py-2 border-b border-gray-700 text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaPontosDia"></tbody>
+        </table>
       </div>
       <div class="flex gap-3 mt-4">
-        <button id="cancelEditBtn" class="flex-1 bg-gray-600 text-white py-2 rounded font-semibold hover:bg-gray-700 transition">Cancelar</button>
-        <button id="saveEditBtn" class="flex-1 bg-green-600 text-white py-2 rounded font-semibold hover:bg-green-700 transition">Salvar</button>
+        <button id="addHoraBtn" class="flex-1 bg-blue-600 text-white py-2 rounded font-semibold hover:bg-blue-700 transition">+ Adicionar Hora</button>
+        <button id="saveDiaBtn" class="flex-1 bg-green-600 text-white py-2 rounded font-semibold hover:bg-green-700 transition">💾 Salvar Alterações</button>
+        <button id="cancelDiaBtn" class="flex-1 bg-gray-600 text-white py-2 rounded font-semibold hover:bg-gray-700 transition">Cancelar</button>
       </div>
     </div>
   </div>
 
-  <script>
+<script>
 /**********************
- * CONFIGURAÇÃO (variáveis de ambiente simuladas)
+ * CONFIGURAÇÃO
  **********************/
 const CONFIG = {
   JSONBIN_API_KEY: "$2a$10$KDi5Sc6Jkhx12a3rQxYSIug08jdJNHTIU1xEq7hbeJCubqyZSQ3ii",
@@ -174,27 +162,61 @@ const CONFIG = {
 };
 
 /**********************
- * API JSONBIN
+ * VARIÁVEIS
+ **********************/
+let pontosDB = {};
+let configDB = {};
+let usuarioSelecionado = null;
+let mesAnoSelecionado = null;
+let diaEditando = null;
+let pontosEditDia = [];
+
+/**********************
+ * ELEMENTOS
+ **********************/
+const loginAdmin = document.getElementById("loginAdmin");
+const painelAdmin = document.getElementById("painelAdmin");
+const adminUser = document.getElementById("adminUser");
+const adminPass = document.getElementById("adminPass");
+const loginAdminBtn = document.getElementById("loginAdminBtn");
+const logoutAdminBtn = document.getElementById("logoutAdminBtn");
+const abaLocalConfig = document.getElementById("abaLocalConfig");
+const abaPontosUsuarios = document.getElementById("abaPontosUsuarios");
+const tabLocalConfig = document.getElementById("tabLocalConfig");
+const tabPontosUsuarios = document.getElementById("tabPontosUsuarios");
+const enderecoInput = document.getElementById("enderecoInput");
+const autocompleteResults = document.getElementById("autocompleteResults");
+const usarLocalAtual = document.getElementById("usarLocalAtual");
+const salvarLocal = document.getElementById("salvarLocal");
+const localAtualTexto = document.getElementById("localAtualTexto");
+const selectUsuario = document.getElementById("selectUsuario");
+const selectMesAno = document.getElementById("selectMesAno");
+const pontosUsuarioContainer = document.getElementById("pontosUsuarioContainer");
+const listaPontosEdit = document.getElementById("listaPontosEdit");
+const modalOverlay = document.getElementById("modalOverlay");
+const modalBox = document.getElementById("modalBox");
+const modalTitle = document.getElementById("modalTitle");
+const modalMessage = document.getElementById("modalMessage");
+const closeModalBtn = document.getElementById("closeModalBtn");
+const modalEditDia = document.getElementById("modalEditDia");
+const modalEditDiaData = document.getElementById("modalEditDiaData");
+const tabelaPontosDia = document.getElementById("tabelaPontosDia");
+const addHoraBtn = document.getElementById("addHoraBtn");
+const saveDiaBtn = document.getElementById("saveDiaBtn");
+const cancelDiaBtn = document.getElementById("cancelDiaBtn");
+
+/**********************
+ * JSONBIN API
  **********************/
 async function getBin(binId) {
   try {
     const res = await fetch(`${CONFIG.JSONBIN_URL}${binId}/latest`, {
       method: "GET",
-      headers: { 
-        "X-Master-Key": CONFIG.JSONBIN_API_KEY,
-        "Content-Type": "application/json"
-      }
+      headers: { "X-Master-Key": CONFIG.JSONBIN_API_KEY, "Content-Type": "application/json" }
     });
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("Erro JSONBin:", errorText);
-      showModal("Erro", "Erro ao carregar dados. Verifique a API Key.");
-      return {};
-    }
     const data = await res.json();
     return data.record || {};
   } catch (err) {
-    console.error("Erro ao ler JSONBin:", err);
     showModal("Erro", "Falha na conexão: " + err.message);
     return {};
   }
@@ -204,73 +226,18 @@ async function updateBin(binId, content) {
   try {
     const res = await fetch(`${CONFIG.JSONBIN_URL}${binId}`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Master-Key": CONFIG.JSONBIN_API_KEY
-      },
+      headers: { "Content-Type": "application/json", "X-Master-Key": CONFIG.JSONBIN_API_KEY },
       body: JSON.stringify(content)
     });
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("Erro ao atualizar:", errorText);
-      showModal("Erro", "Erro ao salvar dados.");
-      return false;
-    }
-    return true;
+    return res.ok;
   } catch (err) {
-    console.error("Erro ao atualizar JSONBin:", err);
     showModal("Erro", "Falha ao salvar: " + err.message);
     return false;
   }
 }
 
 /**********************
- * VARIÁVEIS GLOBAIS
- **********************/
-const loginAdmin = document.getElementById("loginAdmin");
-const painelAdmin = document.getElementById("painelAdmin");
-const loginAdminBtn = document.getElementById("loginAdminBtn");
-const logoutAdminBtn = document.getElementById("logoutAdminBtn");
-const adminUser = document.getElementById("adminUser");
-const adminPass = document.getElementById("adminPass");
-
-const abaLocalConfig = document.getElementById("abaLocalConfig");
-const abaPontosUsuarios = document.getElementById("abaPontosUsuarios");
-const tabLocalConfig = document.getElementById("tabLocalConfig");
-const tabPontosUsuarios = document.getElementById("tabPontosUsuarios");
-
-const latInput = document.getElementById("latInput");
-const lngInput = document.getElementById("lngInput");
-const usarLocalAtual = document.getElementById("usarLocalAtual");
-const salvarLocal = document.getElementById("salvarLocal");
-const localAtualTexto = document.getElementById("localAtualTexto");
-
-const selectUsuario = document.getElementById("selectUsuario");
-const selectMesAno = document.getElementById("selectMesAno");
-const pontosUsuarioContainer = document.getElementById("pontosUsuarioContainer");
-const listaPontosEdit = document.getElementById("listaPontosEdit");
-
-const modalOverlay = document.getElementById("modalOverlay");
-const modalBox = document.getElementById("modalBox");
-const modalTitle = document.getElementById("modalTitle");
-const modalMessage = document.getElementById("modalMessage");
-const closeModalBtn = document.getElementById("closeModalBtn");
-
-const modalEditPonto = document.getElementById("modalEditPonto");
-const editData = document.getElementById("editData");
-const editHora = document.getElementById("editHora");
-const editTipo = document.getElementById("editTipo");
-const cancelEditBtn = document.getElementById("cancelEditBtn");
-const saveEditBtn = document.getElementById("saveEditBtn");
-
-let pontosDB = {};
-let configDB = {};
-let editandoPonto = null;
-let usuarioSelecionado = null;
-let mesAnoSelecionado = null;
-
-/**********************
- * FUNÇÕES AUXILIARES
+ * MODAL GENÉRICO
  **********************/
 function showModal(title, message) {
   modalTitle.textContent = title;
@@ -282,7 +249,6 @@ function showModal(title, message) {
     modalBox.classList.add("opacity-100", "scale-100");
   }, 10);
 }
-
 function closeModal() {
   modalBox.classList.remove("opacity-100", "scale-100");
   modalBox.classList.add("opacity-0", "scale-90");
@@ -291,9 +257,7 @@ function closeModal() {
     modalOverlay.classList.remove("flex");
   }, 200);
 }
-
 closeModalBtn.addEventListener("click", closeModal);
-modalOverlay.addEventListener("click", (e) => { if (e.target === modalOverlay) closeModal(); });
 
 /**********************
  * LOGIN ADMIN
@@ -301,64 +265,92 @@ modalOverlay.addEventListener("click", (e) => { if (e.target === modalOverlay) c
 loginAdminBtn.addEventListener("click", async () => {
   const user = adminUser.value.trim();
   const pass = adminPass.value.trim();
-
   if (user === CONFIG.ADMIN_USER && pass === CONFIG.ADMIN_PASS) {
     pontosDB = await getBin(CONFIG.DATA_BIN_ID);
     configDB = await getBin(CONFIG.CONFIG_BIN_ID);
-    
-    if (!configDB.local_ponto) {
-      configDB.local_ponto = { lat: -22.970349, lng: -42.952487 };
-    }
-    
-    mostrarPainelAdmin();
+    if (!configDB.local_ponto)
+      configDB.local_ponto = { lat: -22.970349, lng: -42.952487, endereco: "" };
+    loginAdmin.classList.add("hidden");
+    painelAdmin.classList.remove("hidden");
     carregarUsuarios();
     atualizarLocalTexto();
-  } else {
-    showModal("Erro", "Usuário ou senha incorretos!");
-  }
+  } else showModal("Erro", "Usuário ou senha incorretos!");
 });
-
-logoutAdminBtn.addEventListener("click", () => {
-  loginAdmin.classList.remove("hidden");
-  painelAdmin.classList.add("hidden");
-  adminUser.value = "";
-  adminPass.value = "";
-});
-
-function mostrarPainelAdmin() {
-  loginAdmin.classList.add("hidden");
-  painelAdmin.classList.remove("hidden");
-}
+logoutAdminBtn.addEventListener("click", () => location.reload());
 
 /**********************
- * CONFIGURAÇÃO LOCAL
+ * LOCAL CONFIG COM AUTOCOMPLETE
  **********************/
 function atualizarLocalTexto() {
   const local = configDB.local_ponto;
-  localAtualTexto.textContent = `Lat: ${local.lat.toFixed(6)}, Lng: ${local.lng.toFixed(6)}`;
-  latInput.value = local.lat;
-  lngInput.value = local.lng;
+  localAtualTexto.innerHTML = `
+    <p class="text-gray-400 mb-1">Local Atual Configurado:</p>
+    <p class="text-accent font-mono">Lat: ${local.lat.toFixed(6)}, Lng: ${local.lng.toFixed(6)}</p>
+    <p class="text-sm text-gray-300 italic mt-1">${local.endereco || ""}</p>
+    <a href="https://www.google.com/maps?q=${local.lat},${local.lng}" target="_blank"
+       class="text-blue-400 hover:underline text-sm">🗺️ Ver no Google Maps</a>
+  `;
+  enderecoInput.value = local.endereco || "";
 }
 
+// Usar localização atual
 usarLocalAtual.addEventListener("click", () => {
   if (!navigator.geolocation) return showModal("Erro", "Seu navegador não suporta geolocalização!");
   navigator.geolocation.getCurrentPosition((pos) => {
-    latInput.value = pos.coords.latitude.toFixed(6);
-    lngInput.value = pos.coords.longitude.toFixed(6);
-  }, (err) => showModal("Erro", "Erro ao capturar localização: " + err.message));
+    configDB.local_ponto = { 
+      lat: pos.coords.latitude, 
+      lng: pos.coords.longitude, 
+      endereco: "" 
+    };
+    atualizarLocalTexto();
+  });
 });
 
+// Salvar local
 salvarLocal.addEventListener("click", async () => {
-  const lat = parseFloat(latInput.value);
-  const lng = parseFloat(lngInput.value);
-  if (isNaN(lat) || isNaN(lng)) return showModal("Erro", "Preencha valores válidos.");
-  
-  configDB.local_ponto = { lat, lng };
-  const sucesso = await updateBin(CONFIG.CONFIG_BIN_ID, configDB);
-  if (sucesso) {
-    showModal("Sucesso", "✅ Local de ponto atualizado!");
-    atualizarLocalTexto();
+  const local = configDB.local_ponto;
+  if (!local.lat || !local.lng) return showModal("Erro", "Local inválido.");
+  if (await updateBin(CONFIG.CONFIG_BIN_ID, configDB))
+    showModal("Sucesso", "✅ Local salvo!");
+});
+
+// Autocomplete enquanto digita
+let debounceTimeout;
+enderecoInput.addEventListener("input", () => {
+  const query = enderecoInput.value.trim();
+  if (!query) return autocompleteResults.classList.add("hidden");
+  clearTimeout(debounceTimeout);
+  debounceTimeout = setTimeout(() => buscarSugestoes(query), 300);
+});
+
+async function buscarSugestoes(query) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`);
+    const data = await res.json();
+    autocompleteResults.innerHTML = "";
+    if (!data.length) return autocompleteResults.classList.add("hidden");
+    data.forEach(item => {
+      const li = document.createElement("li");
+      li.textContent = item.display_name;
+      li.className = "px-3 py-2 cursor-pointer hover:bg-gray-700 text-sm";
+      li.addEventListener("click", () => {
+        enderecoInput.value = item.display_name;
+        configDB.local_ponto = { lat: parseFloat(item.lat), lng: parseFloat(item.lon), endereco: item.display_name };
+        atualizarLocalTexto();
+        autocompleteResults.classList.add("hidden");
+      });
+      autocompleteResults.appendChild(li);
+    });
+    autocompleteResults.classList.remove("hidden");
+  } catch (err) {
+    console.error("Erro ao buscar sugestões:", err);
+    autocompleteResults.classList.add("hidden");
   }
+}
+
+document.addEventListener("click", e => {
+  if (!autocompleteResults.contains(e.target) && e.target !== enderecoInput)
+    autocompleteResults.classList.add("hidden");
 });
 
 /**********************
@@ -366,153 +358,143 @@ salvarLocal.addEventListener("click", async () => {
  **********************/
 function carregarUsuarios() {
   selectUsuario.innerHTML = '<option value="">-- Selecione --</option>';
-  Object.keys(pontosDB).forEach(usuario => {
-    const option = document.createElement("option");
-    option.value = usuario;
-    option.textContent = usuario;
-    selectUsuario.appendChild(option);
+  Object.keys(pontosDB).forEach(u => {
+    const opt = document.createElement("option");
+    opt.value = u;
+    opt.textContent = u;
+    selectUsuario.appendChild(opt);
   });
 }
-
-selectUsuario.addEventListener("change", (e) => {
+selectUsuario.addEventListener("change", e => {
   usuarioSelecionado = e.target.value;
-  if (!usuarioSelecionado) {
-    pontosUsuarioContainer.classList.add("hidden");
-    return;
-  }
-  
+  if (!usuarioSelecionado) return pontosUsuarioContainer.classList.add("hidden");
   carregarMesesUsuario();
   pontosUsuarioContainer.classList.remove("hidden");
 });
-
 function carregarMesesUsuario() {
   selectMesAno.innerHTML = '<option value="">-- Selecione --</option>';
   const meses = Object.keys(pontosDB[usuarioSelecionado] || {});
-  meses.forEach(mes => {
-    const option = document.createElement("option");
-    option.value = mes;
-    option.textContent = mes;
-    selectMesAno.appendChild(option);
+  meses.forEach(m => {
+    const opt = document.createElement("option");
+    opt.value = m;
+    opt.textContent = m;
+    selectMesAno.appendChild(opt);
   });
 }
-
-selectMesAno.addEventListener("change", (e) => {
+selectMesAno.addEventListener("change", e => {
   mesAnoSelecionado = e.target.value;
-  if (!mesAnoSelecionado) {
-    listaPontosEdit.innerHTML = "";
-    return;
-  }
+  if (!mesAnoSelecionado) return listaPontosEdit.innerHTML = "";
   renderizarPontos();
 });
 
+/**********************
+ * RENDERIZAÇÃO POR DIA
+ **********************/
 function renderizarPontos() {
   listaPontosEdit.innerHTML = "";
   const pontos = pontosDB[usuarioSelecionado][mesAnoSelecionado] || [];
-  
-  if (pontos.length === 0) {
-    listaPontosEdit.innerHTML = '<p class="text-gray-500 text-center">Nenhum ponto registrado.</p>';
-    return;
-  }
-
-  pontos.forEach((ponto, index) => {
+  if (!pontos.length) return listaPontosEdit.innerHTML = '<p class="text-gray-500 text-center">Nenhum ponto registrado.</p>';
+  const agrupado = {};
+  pontos.forEach(p => (agrupado[p.data] = agrupado[p.data] || []).push(p));
+  Object.keys(agrupado).forEach(data => {
+    const pontosDia = agrupado[data];
+    const resumo = pontosDia.map(p => `${p.hora} (${p.tipo})`).join(", ");
     const card = document.createElement("div");
     card.className = "bg-[#111113] border border-gray-700 rounded p-4 flex justify-between items-center";
     card.innerHTML = `
       <div>
-        <p class="text-accent font-semibold">${ponto.data} - ${ponto.hora}</p>
-        <p class="text-sm text-gray-400">${ponto.tipo}</p>
-        <p class="text-xs text-gray-600">Lat: ${ponto.lat}, Lng: ${ponto.lng}</p>
+        <p class="text-accent font-semibold">${data}</p>
+        <p class="text-sm text-gray-400">${resumo}</p>
       </div>
-      <div class="flex gap-2">
-        <button class="editarPontoBtn bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm" data-index="${index}">
-          ✏️ Editar
-        </button>
-        <button class="deletarPontoBtn bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-sm" data-index="${index}">
-          🗑️ Deletar
-        </button>
-      </div>
+      <button class="editarDiaBtn bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm" data-data="${data}">✏️ Editar</button>
     `;
     listaPontosEdit.appendChild(card);
   });
-
-  document.querySelectorAll(".editarPontoBtn").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      const index = parseInt(e.target.closest("button").dataset.index);
-      abrirModalEdicao(index);
-    });
-  });
-
-  document.querySelectorAll(".deletarPontoBtn").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      const index = parseInt(e.target.closest("button").dataset.index);
-      deletarPonto(index);
-    });
-  });
-}
-
-function abrirModalEdicao(index) {
-  const ponto = pontosDB[usuarioSelecionado][mesAnoSelecionado][index];
-  editandoPonto = index;
-  editData.value = ponto.data;
-  editHora.value = ponto.hora;
-  editTipo.value = ponto.tipo;
-  modalEditPonto.classList.remove("hidden");
-  modalEditPonto.classList.add("flex");
-}
-
-cancelEditBtn.addEventListener("click", () => {
-  modalEditPonto.classList.add("hidden");
-  modalEditPonto.classList.remove("flex");
-  editandoPonto = null;
-});
-
-saveEditBtn.addEventListener("click", async () => {
-  if (editandoPonto === null) return;
-  
-  const ponto = pontosDB[usuarioSelecionado][mesAnoSelecionado][editandoPonto];
-  ponto.data = editData.value;
-  ponto.hora = editHora.value;
-  ponto.tipo = editTipo.value;
-  
-  const sucesso = await updateBin(CONFIG.DATA_BIN_ID, pontosDB);
-  if (sucesso) {
-    showModal("Sucesso", "✅ Ponto atualizado!");
-    renderizarPontos();
-    modalEditPonto.classList.add("hidden");
-    modalEditPonto.classList.remove("flex");
-    editandoPonto = null;
-  }
-});
-
-async function deletarPonto(index) {
-  if (!confirm("Tem certeza que deseja deletar este ponto?")) return;
-  
-  pontosDB[usuarioSelecionado][mesAnoSelecionado].splice(index, 1);
-  const sucesso = await updateBin(CONFIG.DATA_BIN_ID, pontosDB);
-  if (sucesso) {
-    showModal("Sucesso", "✅ Ponto deletado!");
-    renderizarPontos();
-  }
+  document.querySelectorAll(".editarDiaBtn").forEach(btn => btn.addEventListener("click", e => abrirModalEditar(e.target.dataset.data)));
 }
 
 /**********************
- * ALTERNÂNCIA DE ABAS
+ * MODAL EDITAR DIA
+ **********************/
+function abrirModalEditar(data) {
+  diaEditando = data;
+  pontosEditDia = pontosDB[usuarioSelecionado][mesAnoSelecionado].filter(p => p.data === data);
+  modalEditDiaData.textContent = `Editando: ${data}`;
+  renderTabelaPontosDia();
+  modalEditDia.classList.remove("hidden");
+  modalEditDia.classList.add("flex");
+}
+function fecharModalEditar() {
+  modalEditDia.classList.add("hidden");
+  modalEditDia.classList.remove("flex");
+}
+cancelDiaBtn.addEventListener("click", fecharModalEditar);
+
+function renderTabelaPontosDia() {
+  tabelaPontosDia.innerHTML = "";
+  pontosEditDia.forEach((p, i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="px-3 py-2 border-b border-gray-700"><input type="time" value="${p.hora}" class="bg-[#111113] border border-gray-700 rounded px-2 py-1 w-full text-gray-200" data-i="${i}" data-field="hora"></td>
+      <td class="px-3 py-2 border-b border-gray-700">
+        <select class="bg-[#111113] border border-gray-700 rounded px-2 py-1 w-full text-gray-200" data-i="${i}" data-field="tipo">
+          <option value="Entrada" ${p.tipo === "Entrada" ? "selected" : ""}>Entrada</option>
+          <option value="Saída" ${p.tipo === "Saída" ? "selected" : ""}>Saída</option>
+        </select>
+      </td>
+      <td class="px-3 py-2 border-b border-gray-700 text-right">
+        <button class="text-red-400 hover:text-red-500 text-sm" data-remove="${i}">🗑️</button>
+      </td>
+    `;
+    tabelaPontosDia.appendChild(tr);
+  });
+  document.querySelectorAll("input[data-field], select[data-field]").forEach(el => {
+    el.addEventListener("input", e => {
+      const i = e.target.dataset.i;
+      const field = e.target.dataset.field;
+      pontosEditDia[i][field] = e.target.value;
+    });
+  });
+  document.querySelectorAll("[data-remove]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      const idx = e.target.dataset.remove;
+      pontosEditDia.splice(idx, 1);
+      renderTabelaPontosDia();
+    });
+  });
+}
+
+addHoraBtn.addEventListener("click", () => {
+  pontosEditDia.push({ data: diaEditando, hora: "08:00", tipo: "Entrada" });
+  renderTabelaPontosDia();
+});
+
+saveDiaBtn.addEventListener("click", async () => {
+  const todos = pontosDB[usuarioSelecionado][mesAnoSelecionado].filter(p => p.data !== diaEditando);
+  pontosDB[usuarioSelecionado][mesAnoSelecionado] = [...todos, ...pontosEditDia];
+  if (await updateBin(CONFIG.DATA_BIN_ID, pontosDB)) {
+    showModal("Sucesso", "✅ Alterações salvas!");
+    fecharModalEditar();
+    renderizarPontos();
+  }
+});
+
+/**********************
+ * TROCAR ABAS
  **********************/
 abaLocalConfig.addEventListener("click", () => {
   abaLocalConfig.classList.add("border-accent", "text-accent");
   abaPontosUsuarios.classList.remove("border-accent", "text-accent");
-  abaPontosUsuarios.classList.add("border-transparent");
   tabLocalConfig.classList.remove("hidden");
   tabPontosUsuarios.classList.add("hidden");
 });
-
 abaPontosUsuarios.addEventListener("click", () => {
   abaPontosUsuarios.classList.add("border-accent", "text-accent");
   abaLocalConfig.classList.remove("border-accent", "text-accent");
-  abaLocalConfig.classList.add("border-transparent");
   tabPontosUsuarios.classList.remove("hidden");
   tabLocalConfig.classList.add("hidden");
 });
 </script>
+
 </body>
 </html>
