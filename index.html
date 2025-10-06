@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema de Ponto - Localização Verificada</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fonte: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ["Inter", "sans-serif"] },
+          colors: {
+            darkbg: "#0b0b0d",
+            darkcard: "#1e1f22",
+            darktext: "#e3e3e5",
+            accent: "#f97316",
+            accentHover: "#fb923c"
+          }
+        }
+      }
+    };
+  </script>
+</head>
+
+<body class="bg-darkbg min-h-screen flex flex-col items-center justify-start text-darktext font-sans p-4">
+  <div class="bg-darkcard rounded-2xl shadow-lg w-full max-w-lg border border-gray-700/50 p-6 mb-6">
+    <h1 class="text-2xl font-bold text-center text-accent mb-6">Sistema de Ponto</h1>
+
+    <!-- Login -->
+    <div id="loginSection" class="space-y-4">
+      <input id="username" type="text" placeholder="Digite seu nome"
+        class="w-full p-3 border border-gray-700 bg-[#111113] rounded text-darktext focus:outline-none focus:border-accent transition">
+      <button id="loginBtn"
+        class="bg-accent text-white w-full py-2.5 rounded font-semibold hover:bg-accentHover transition">
+        Entrar
+      </button>
+    </div>
+
+    <!-- Área principal -->
+    <div id="mainSection" class="hidden">
+      <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
+        <h2 id="welcomeUser" class="text-lg font-medium"></h2>
+        <button id="logoutBtn" class="text-red-400 hover:text-red-500 text-sm font-medium">Trocar usuário</button>
+      </div>
+
+      <div class="mb-5 text-center">
+        <button id="pontoBtn"
+          class="bg-accent text-white px-5 py-2.5 rounded font-semibold hover:bg-accentHover transition w-full sm:w-auto">
+          Bater Ponto
+        </button>
+        <p id="statusMsg" class="text-sm text-gray-400 mt-2"></p>
+      </div>
+
+      <h3 class="text-md font-semibold mb-2 text-gray-300">Pontos do mês</h3>
+      <div id="pontosGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto"></div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="modalOverlay" class="fixed inset-0 bg-black/60 hidden justify-center items-center z-50 transition-opacity duration-300">
+    <div id="modalBox" class="bg-darkcard border border-gray-700 rounded-xl p-6 max-w-sm w-full scale-90 opacity-0 transition-all duration-300">
+      <h3 id="modalTitle" class="text-lg font-semibold mb-2 text-accent"></h3>
+      <p id="modalMessage" class="text-gray-300 mb-4"></p>
+      <div class="text-right">
+        <button id="closeModalBtn" class="bg-accent text-white px-4 py-1.5 rounded hover:bg-accentHover transition">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const loginSection = document.getElementById("loginSection");
+    const mainSection = document.getElementById("mainSection");
+    const loginBtn = document.getElementById("loginBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const pontoBtn = document.getElementById("pontoBtn");
+    const pontosGrid = document.getElementById("pontosGrid");
+    const welcomeUser = document.getElementById("welcomeUser");
+    const statusMsg = document.getElementById("statusMsg");
+
+    const modalOverlay = document.getElementById("modalOverlay");
+    const modalBox = document.getElementById("modalBox");
+    const modalTitle = document.getElementById("modalTitle");
+    const modalMessage = document.getElementById("modalMessage");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+
+    let currentUser = null;
+    const usuariosPermitidos = ["joao", "ingrid"];
+    const localPermitido = { lat: -22.970349325482346, lng: -42.95248794047665 };
+    const raioPermitido = 10;
+    const etapas = ["Entrada da manhã", "Saída para almoço", "Retorno do almoço", "Saída final"];
+
+    function showModal(title, message) {
+      modalTitle.textContent = title;
+      modalMessage.textContent = message;
+      modalOverlay.classList.remove("hidden");
+      setTimeout(() => {
+        modalOverlay.classList.add("flex");
+        modalBox.classList.remove("opacity-0", "scale-90");
+        modalBox.classList.add("opacity-100", "scale-100");
+      }, 10);
+    }
+
+    function closeModal() {
+      modalBox.classList.remove("opacity-100", "scale-100");
+      modalBox.classList.add("opacity-0", "scale-90");
+      setTimeout(() => {
+        modalOverlay.classList.add("hidden");
+        modalOverlay.classList.remove("flex");
+      }, 200);
+    }
+
+    closeModalBtn.addEventListener("click", closeModal);
+    modalOverlay.addEventListener("click", (e) => { if (e.target === modalOverlay) closeModal(); });
+
+    function normalizarTexto(txt) {
+      return txt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    }
+
+    loginBtn.addEventListener("click", () => {
+      const usernameInput = document.getElementById("username").value;
+      const usernameNormalizado = normalizarTexto(usernameInput);
+      if (!usernameInput) return showModal("Atenção", "Digite seu nome para continuar!");
+      if (!usuariosPermitidos.includes(usernameNormalizado)) return showModal("Usuário inválido", "Acesso permitido apenas para João ou Ingrid.");
+
+      currentUser = usernameNormalizado === "joao" ? "João" : "Ingrid";
+      document.getElementById("username").value = "";
+      showMain();
+    });
+
+    logoutBtn.addEventListener("click", () => { currentUser = null; showLogin(); });
+
+    function showMain() {
+      loginSection.classList.add("hidden");
+      mainSection.classList.remove("hidden");
+      welcomeUser.textContent = "Usuário: " + currentUser;
+      renderPontos();
+    }
+
+    function showLogin() {
+      loginSection.classList.remove("hidden");
+      mainSection.classList.add("hidden");
+      pontosGrid.innerHTML = "";
+    }
+
+    function getDatabase() { return JSON.parse(localStorage.getItem("pontos_db")) || {}; }
+    function saveDatabase(db) { localStorage.setItem("pontos_db", JSON.stringify(db)); }
+    function getUserMonthKey() { return new Date().toLocaleString("pt-BR", { month: "2-digit", year: "numeric" }).replace("/", "-"); }
+
+    function calcularDistancia(lat1, lon1, lat2, lon2) {
+      const R = 6371e3;
+      const φ1 = lat1 * Math.PI / 180;
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    pontoBtn.addEventListener("click", () => {
+      if (!navigator.geolocation) return showModal("Erro", "Seu navegador não suporta geolocalização!");
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const { latitude, longitude } = pos.coords;
+        const distancia = calcularDistancia(latitude, longitude, localPermitido.lat, localPermitido.lng);
+        const distanciaFormatada = distancia < 1000 ? `${distancia.toFixed(2)} metros` : `${(distancia/1000).toFixed(3)} km`;
+        if (distancia > raioPermitido) showModal("Fora do ponto", `Você está fora do ponto permitido.\nDistância: ${distanciaFormatada}`);
+        else { registrarPonto(latitude, longitude); showModal("Sucesso", `✅ Dentro do ponto!\nDistância: ${distanciaFormatada}`); }
+      }, (err) => showModal("Erro", "Erro ao capturar localização: " + err.message));
+    });
+
+    function registrarPonto(latitude, longitude) {
+      const db = getDatabase();
+      const mesAno = getUserMonthKey();
+      const hoje = new Date().toLocaleDateString("pt-BR");
+
+      if (!db[currentUser]) db[currentUser] = {};
+      if (!db[currentUser][mesAno]) db[currentUser][mesAno] = [];
+      const pontos = db[currentUser][mesAno];
+      const pontosHoje = pontos.filter(p => p.data === hoje);
+
+      if (pontosHoje.length >= 4) { showModal("Aviso", "⚠️ Você já registrou os 4 pontos de hoje."); return; }
+
+      const now = new Date();
+      const hora = now.toLocaleTimeString("pt-BR");
+      const tipo = etapas[pontosHoje.length];
+
+      pontos.push({ data: hoje, hora, tipo, lat: latitude.toFixed(6), lng: longitude.toFixed(6) });
+      saveDatabase(db);
+      renderPontos();
+    }
+
+    function renderPontos() {
+      if (!currentUser) return;
+      const db = getDatabase();
+      const mesAno = getUserMonthKey();
+      const userData = db[currentUser]?.[mesAno] || [];
+
+      pontosGrid.innerHTML = "";
+      if (userData.length === 0) { 
+        pontosGrid.innerHTML = `<div class="text-gray-500 text-center col-span-full">Nenhum ponto registrado neste mês.</div>`; 
+        statusMsg.textContent = ""; 
+        return; 
+      }
+
+      // Agrupa por data
+      const pontosPorDia = {};
+      userData.forEach(p => {
+        if (!pontosPorDia[p.data]) pontosPorDia[p.data] = [];
+        pontosPorDia[p.data].push(p);
+      });
+
+      // Ordena por dia
+      Object.keys(pontosPorDia).sort((a,b)=> new Date(a)-new Date(b)).forEach(dia => {
+        const card = document.createElement("div");
+        card.className = "border border-gray-700/60 p-3 rounded bg-[#141416]";
+        const pontosDia = pontosPorDia[dia];
+        card.innerHTML = `<div class="font-semibold text-accent mb-1">${dia}</div>
+          <ul class="text-sm text-gray-300 space-y-1">
+            ${pontosDia.map(p => `<li>${p.tipo} - ${p.hora}</li>`).join("")}
+          </ul>`;
+        pontosGrid.appendChild(card);
+      });
+
+      // Status do dia atual
+      const hoje = new Date().toLocaleDateString("pt-BR");
+      const pontosHoje = userData.filter(p => p.data === hoje);
+      const restante = 4 - pontosHoje.length;
+      statusMsg.textContent = restante > 0 ? `Faltam ${restante} ponto${restante>1?"s":""} hoje.` : "✅ Todos os pontos de hoje foram registrados.";
+    }
+
+    showLogin();
+  </script>
+</body>
+</html>
