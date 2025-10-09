@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Sistema de Ponto</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body class="bg-[#0b0b0d] min-h-screen flex flex-col items-center justify-center text-[#e3e3e5] font-sans p-4">
+  <div class="bg-[#1e1f22] rounded-2xl shadow-lg w-full max-w-md border border-gray-700/50 p-6">
+    <h1 class="text-2xl font-bold text-center text-[#f97316] mb-6">Login - Sistema de Ponto</h1>
+
+    <div class="space-y-4">
+      <input id="username" type="text" placeholder="Digite seu nome"
+        class="w-full p-3 border border-gray-700 bg-[#111113] rounded text-[#e3e3e5] focus:outline-none focus:border-[#f97316] transition">
+      <button id="loginBtn"
+        class="bg-[#f97316] text-white w-full py-2.5 rounded font-semibold hover:bg-[#fb923c] transition">
+        Entrar
+      </button>
+      <p id="msg" class="text-center text-sm text-gray-400 mt-2"></p>
+    </div>
+  </div>
+
+  <script>
+    const usuarios = {
+      joao: "João",
+      ingrid: "Ingrid",
+      viviane: "Viviane",
+      admin: "Administrador"
+    };
+
+    function normalizar(txt) {
+      return txt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    }
+
+    const msg = document.getElementById("msg");
+
+    document.getElementById("loginBtn").addEventListener("click", () => {
+      const input = document.getElementById("username").value.trim();
+      const nome = normalizar(input);
+
+      if (!input) return msg.textContent = "Digite seu nome.";
+      if (!usuarios[nome]) return msg.textContent = "Usuário inválido.";
+
+      sessionStorage.setItem("usuarioLogado", usuarios[nome]);
+      window.location.href = "index.html";
+    });
+
+    if (sessionStorage.getItem("usuarioLogado")) {
+      window.location.href = "index.html";
+    }
+  </script>
+</body>
+</html>
