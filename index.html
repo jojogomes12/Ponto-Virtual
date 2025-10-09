@@ -1,349 +1,117 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sistema de Ponto - Localização Verificada</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { sans: ["Inter", "sans-serif"] },
-          colors: {
-            darkbg: "#0b0b0d",
-            darkcard: "#1e1f22",
-            darktext: "#e3e3e5",
-            accent: "#f97316",
-            accentHover: "#fb923c"
-          }
-        }
-      }
-    };
-  </script>
 </head>
 
-<body class="bg-darkbg min-h-screen flex flex-col items-center justify-start text-darktext font-sans p-4">
-  <div class="bg-darkcard rounded-2xl shadow-lg w-full max-w-lg border border-gray-700/50 p-6 mb-6">
-    <h1 class="text-2xl font-bold text-center text-accent mb-6">Sistema de Ponto</h1>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-start min-h-screen p-4">
+  <div class="bg-gray-800 rounded-2xl shadow-lg w-full max-w-lg border border-gray-700 p-6 mb-6">
+    <h1 class="text-2xl font-bold text-center text-orange-400 mb-6">Sistema de Ponto</h1>
 
-    <!-- Login -->
-    <div id="loginSection" class="space-y-4">
-      <input id="username" type="text" placeholder="Digite seu nome"
-        class="w-full p-3 border border-gray-700 bg-[#111113] rounded text-darktext focus:outline-none focus:border-accent transition">
-      <button id="loginBtn"
-        class="bg-accent text-white w-full py-2.5 rounded font-semibold hover:bg-accentHover transition">
-        Entrar
+    <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
+      <h2 id="welcomeUser" class="text-lg font-medium"></h2>
+      <button id="logoutBtn" class="text-red-400 hover:text-red-500 text-sm font-medium">Sair</button>
+    </div>
+
+    <div class="mb-5 text-center">
+      <button id="pontoBtn" class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded font-semibold transition w-full sm:w-auto">
+        Bater Ponto
       </button>
+      <p id="statusMsg" class="text-sm text-gray-400 mt-2"></p>
     </div>
 
-    <!-- Área principal -->
-    <div id="mainSection" class="hidden">
-      <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
-        <h2 id="welcomeUser" class="text-lg font-medium"></h2>
-        <button id="logoutBtn" class="text-red-400 hover:text-red-500 text-sm font-medium">Trocar usuário</button>
-      </div>
-
-      <div class="mb-5 text-center">
-        <button id="pontoBtn"
-          class="bg-accent text-white px-5 py-2.5 rounded font-semibold hover:bg-accentHover transition w-full sm:w-auto">
-          Bater Ponto
-        </button>
-        <p id="statusMsg" class="text-sm text-gray-400 mt-2"></p>
-      </div>
-
-      <div class="flex justify-between items-center mb-3">
-        <h3 class="text-md font-semibold text-gray-300">Pontos do mês</h3>
-        <p id="localAtualTexto" class="text-xs text-gray-500"></p>
-      </div>
-      <div id="pontosGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto"></div>
+    <div class="flex justify-between items-center mb-3">
+      <h3 class="text-md font-semibold text-gray-300">Pontos do mês</h3>
     </div>
-  </div>
+    <div id="pontosGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto"></div>
 
-  <!-- Link para Admin -->
-  <div class="text-center mt-4">
-    <a href="admin.html" class="text-gray-500 hover:text-accent text-sm transition">Área Administrativa</a>
-  </div>
-
-  <!-- Modal -->
-  <div id="modalOverlay" class="fixed inset-0 bg-black/60 hidden justify-center items-center z-50 transition-opacity duration-300">
-    <div id="modalBox" class="bg-darkcard border border-gray-700 rounded-xl p-6 max-w-sm w-full scale-90 opacity-0 transition-all duration-300">
-      <h3 id="modalTitle" class="text-lg font-semibold mb-2 text-accent"></h3>
-      <p id="modalMessage" class="text-gray-300 mb-4"></p>
-      <div class="text-right">
-        <button id="closeModalBtn" class="bg-accent text-white px-4 py-1.5 rounded hover:bg-accentHover transition">Fechar</button>
-      </div>
+    <div class="mt-6 text-center">
+      <a href="admin.html" class="text-gray-400 hover:text-orange-400 text-sm transition">Área Administrativa</a>
     </div>
   </div>
 
   <script>
-/**********************
- * CONFIGURAÇÃO
- **********************/
-const CONFIG = {
-  JSONBIN_API_KEY: "$2a$10$KDi5Sc6Jkhx12a3rQxYSIug08jdJNHTIU1xEq7hbeJCubqyZSQ3ii",
-  DATA_BIN_ID: "68e3c7c8d0ea881f40975071",
-  CONFIG_BIN_ID: "68e3c7b143b1c97be95c6112",
-  JSONBIN_URL: "https://api.jsonbin.io/v3/b/"
-};
+    const CONFIG = {
+      JSONBIN_API_KEY: "$2a$10$KDi5Sc6Jkhx12a3rQxYSIug08jdJNHTIU1xEq7hbeJCubqyZSQ3ii",
+      DATA_BIN_ID: "68e3c7c8d0ea881f40975071",
+      JSONBIN_URL: "https://api.jsonbin.io/v3/b/"
+    };
 
-/**********************
- * API JSONBIN
- **********************/
-async function getBin(binId) {
-  try {
-    const res = await fetch(`${CONFIG.JSONBIN_URL}${binId}/latest`, {
-      method: "GET",
-      headers: { 
-        "X-Master-Key": CONFIG.JSONBIN_API_KEY,
-        "Content-Type": "application/json"
+    async function getBin(binId) {
+      try {
+        const res = await fetch(`${CONFIG.JSONBIN_URL}${binId}/latest`, {
+          headers: {
+            "X-Master-Key": CONFIG.JSONBIN_API_KEY,
+            "Content-Type": "application/json"
+          }
+        });
+        if (!res.ok) throw new Error("Erro ao buscar dados");
+        const data = await res.json();
+        return data.record || {};
+      } catch (err) {
+        alert("Erro ao conectar à API: " + err.message);
+        return {};
       }
-    });
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("Erro JSONBin:", errorText);
-      showModal("Erro", "Erro ao carregar dados. Verifique a API Key.");
-      return {};
     }
-    const data = await res.json();
-    return data.record || {};
-  } catch (err) {
-    console.error("Erro ao ler JSONBin:", err);
-    showModal("Erro", "Falha na conexão: " + err.message);
-    return {};
-  }
-}
 
-async function updateBin(binId, content) {
-  try {
-    const res = await fetch(`${CONFIG.JSONBIN_URL}${binId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Master-Key": CONFIG.JSONBIN_API_KEY
-      },
-      body: JSON.stringify(content)
-    });
-    return res.ok;
-  } catch (err) {
-    console.error("Erro ao atualizar JSONBin:", err);
-    return false;
-  }
-}
+    const usuario = sessionStorage.getItem("usuarioLogado");
+    const welcomeUser = document.getElementById("welcomeUser");
+    const pontosGrid = document.getElementById("pontosGrid");
+    const statusMsg = document.getElementById("statusMsg");
 
-/**********************
- * VARIÁVEIS GLOBAIS
- **********************/
-const loginSection = document.getElementById("loginSection");
-const mainSection = document.getElementById("mainSection");
-const loginBtn = document.getElementById("loginBtn");
-const logoutBtn = document.getElementById("logoutBtn");
-const pontoBtn = document.getElementById("pontoBtn");
-const pontosGrid = document.getElementById("pontosGrid");
-const welcomeUser = document.getElementById("welcomeUser");
-const statusMsg = document.getElementById("statusMsg");
-const localAtualTexto = document.getElementById("localAtualTexto");
-const modalOverlay = document.getElementById("modalOverlay");
-const modalBox = document.getElementById("modalBox");
-const modalTitle = document.getElementById("modalTitle");
-const modalMessage = document.getElementById("modalMessage");
-const closeModalBtn = document.getElementById("closeModalBtn");
-
-let currentUser = null;
-let pontosDB = {};
-let configDB = {};
-
-const usuarios = {
-  joao: "João",
-  ingrid: "Ingrid",
-  viviane: "Viviane",
-  admin: "Administrador"
-};
-
-const raioPermitido = 20;
-const etapas = ["Entrada da manhã", "Saída para almoço", "Retorno do almoço", "Saída final"];
-
-/**********************
- * FUNÇÕES AUXILIARES
- **********************/
-const normalizarTexto = (txt) => txt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-
-function showModal(title, message) {
-  modalTitle.textContent = title;
-  modalMessage.textContent = message;
-  modalOverlay.classList.remove("hidden");
-  setTimeout(() => {
-    modalOverlay.classList.add("flex");
-    modalBox.classList.remove("opacity-0", "scale-90");
-    modalBox.classList.add("opacity-100", "scale-100");
-  }, 10);
-}
-
-function closeModal() {
-  modalBox.classList.remove("opacity-100", "scale-100");
-  modalBox.classList.add("opacity-0", "scale-90");
-  setTimeout(() => {
-    modalOverlay.classList.add("hidden");
-    modalOverlay.classList.remove("flex");
-  }, 200);
-}
-
-closeModalBtn.addEventListener("click", closeModal);
-modalOverlay.addEventListener("click", (e) => { if (e.target === modalOverlay) closeModal(); });
-
-const calcularDistancia = (lat1, lon1, lat2, lon2) => {
-  const R = 6371e3;
-  const φ1 = lat1 * Math.PI / 180;
-  const φ2 = lat2 * Math.PI / 180;
-  const Δφ = (lat2 - lat1) * Math.PI / 180;
-  const Δλ = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
-
-/**********************
- * FUNÇÕES DE CONFIG
- **********************/
-async function carregarConfig() {
-  configDB = await getBin(CONFIG.CONFIG_BIN_ID);
-  if (!configDB.local_ponto) {
-    configDB.local_ponto = { lat: -22.970349, lng: -42.952487 };
-    await updateBin(CONFIG.CONFIG_BIN_ID, configDB);
-  }
-  atualizarLocalTexto();
-}
-
-function atualizarLocalTexto() {
-  const local = configDB.local_ponto;
-}
-
-/**********************
- * FUNÇÕES DE LOGIN
- **********************/
-loginBtn.addEventListener("click", async () => {
-  const usernameInput = document.getElementById("username").value;
-  const usernameNormalizado = normalizarTexto(usernameInput);
-
-  if (!usernameInput) return showModal("Atenção", "Digite seu nome para continuar!");
-  if (!usuarios[usernameNormalizado]) return showModal("Usuário inválido", "Acesso não permitido.");
-
-  currentUser = usuarios[usernameNormalizado];
-  document.getElementById("username").value = "";
-
-  pontosDB = await getBin(CONFIG.DATA_BIN_ID);
-  showMain();
-});
-
-logoutBtn.addEventListener("click", () => {
-  currentUser = null;
-  showLogin();
-});
-
-function showMain() {
-  loginSection.classList.add("hidden");
-  mainSection.classList.remove("hidden");
-  welcomeUser.textContent = "Usuário: " + currentUser;
-  renderPontos();
-}
-
-function showLogin() {
-  loginSection.classList.remove("hidden");
-  mainSection.classList.add("hidden");
-  pontosGrid.innerHTML = "";
-}
-
-/**********************
- * FUNÇÕES DE PONTO
- **********************/
-function getUserMonthKey() {
-  return new Date().toLocaleString("pt-BR", { month: "2-digit", year: "numeric" }).replace("/", "-");
-}
-
-pontoBtn.addEventListener("click", () => {
-  const localPermitido = configDB.local_ponto;
-  if (!navigator.geolocation) return showModal("Erro", "Seu navegador não suporta geolocalização!");
-  navigator.geolocation.getCurrentPosition((pos) => {
-    const { latitude, longitude } = pos.coords;
-    const distancia = calcularDistancia(latitude, longitude, localPermitido.lat, localPermitido.lng);
-    if (distancia > raioPermitido) {
-      showModal("Fora do ponto", `Você está fora do ponto (${distancia.toFixed(2)}m de distância)`);
+    if (!usuario) {
+      window.location.href = "login.html";
     } else {
-      registrarPonto(latitude, longitude);
+      welcomeUser.textContent = "Usuário: " + usuario;
+      carregarPontos();
     }
-  }, (err) => showModal("Erro", "Erro ao capturar localização: " + err.message));
-});
 
-async function registrarPonto(latitude, longitude) {
-  const mesAno = getUserMonthKey();
-  const hoje = new Date().toLocaleDateString("pt-BR");
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      sessionStorage.removeItem("usuarioLogado");
+      window.location.href = "login.html";
+    });
 
-  if (!pontosDB[currentUser]) pontosDB[currentUser] = {};
-  if (!pontosDB[currentUser][mesAno]) pontosDB[currentUser][mesAno] = [];
+    async function carregarPontos() {
+      const pontosDB = await getBin(CONFIG.DATA_BIN_ID);
+      const mesAno = new Date().toLocaleString("pt-BR", { month: "2-digit", year: "numeric" }).replace("/", "-");
+      const dadosUsuario = pontosDB[usuario]?.[mesAno] || [];
 
-  const pontos = pontosDB[currentUser][mesAno];
-  const pontosHoje = pontos.filter(p => p.data === hoje);
+      pontosGrid.innerHTML = "";
+      if (dadosUsuario.length === 0) {
+        pontosGrid.innerHTML = `<div class="text-gray-500 text-center col-span-full">Nenhum ponto registrado neste mês.</div>`;
+        return;
+      }
 
-  if (pontosHoje.length >= 4) return showModal("Aviso", "⚠️ Você já registrou os 4 pontos de hoje.");
+      const pontosPorDia = {};
+      dadosUsuario.forEach(p => {
+        if (!pontosPorDia[p.data]) pontosPorDia[p.data] = [];
+        pontosPorDia[p.data].push(p);
+      });
 
-  const hora = new Date().toLocaleTimeString("pt-BR");
-  const tipo = etapas[pontosHoje.length];
+      Object.keys(pontosPorDia).sort((a, b) => {
+        const [diaA, mesA, anoA] = a.split('/');
+        const [diaB, mesB, anoB] = b.split('/');
+        return new Date(anoB, mesB - 1, diaB) - new Date(anoA, mesA - 1, diaA);
+      }).forEach(dia => {
+        const card = document.createElement("div");
+        card.className = "border border-gray-700 p-3 rounded bg-gray-900";
+        card.innerHTML = `<div class="font-semibold text-orange-400 mb-1">${dia}</div>
+          <ul class="text-sm text-gray-300 space-y-1">
+            ${pontosPorDia[dia].map(p => `<li>${p.tipo} - ${p.hora}</li>`).join("")}
+          </ul>`;
+        pontosGrid.appendChild(card);
+      });
 
-  pontos.push({ data: hoje, hora, tipo, lat: latitude.toFixed(6), lng: longitude.toFixed(6) });
-
-  await updateBin(CONFIG.DATA_BIN_ID, pontosDB);
-  renderPontos();
-  showModal("Sucesso", "✅ Ponto registrado com sucesso!");
-}
-
-function renderPontos() {
-  if (!currentUser) return;
-  const mesAno = getUserMonthKey();
-  const userData = pontosDB[currentUser]?.[mesAno] || [];
-
-  pontosGrid.innerHTML = "";
-  if (userData.length === 0) {
-    pontosGrid.innerHTML = `<div class="text-gray-500 text-center col-span-full">Nenhum ponto registrado neste mês.</div>`;
-    statusMsg.textContent = "";
-    return;
-  }
-
-  const pontosPorDia = {};
-  userData.forEach(p => {
-    if (!pontosPorDia[p.data]) pontosPorDia[p.data] = [];
-    pontosPorDia[p.data].push(p);
-  });
-
-  Object.keys(pontosPorDia).sort((a, b) => {
-    const [diaA, mesA, anoA] = a.split('/');
-    const [diaB, mesB, anoB] = b.split('/');
-    return new Date(anoB, mesB - 1, diaB) - new Date(anoA, mesA - 1, diaA);
-  }).forEach(dia => {
-    const card = document.createElement("div");
-    card.className = "border border-gray-700/60 p-3 rounded bg-[#141416]";
-    const pontosDia = pontosPorDia[dia];
-    card.innerHTML = `<div class="font-semibold text-accent mb-1">${dia}</div>
-      <ul class="text-sm text-gray-300 space-y-1">
-        ${pontosDia.map(p => `<li>${p.tipo} - ${p.hora}</li>`).join("")}
-      </ul>`;
-    pontosGrid.appendChild(card);
-  });
-
-  const hoje = new Date().toLocaleDateString("pt-BR");
-  const pontosHoje = userData.filter(p => p.data === hoje);
-  const restante = 4 - pontosHoje.length;
-  statusMsg.textContent = restante > 0
-    ? `Faltam ${restante} ponto${restante > 1 ? "s" : ""} hoje.`
-    : "✅ Todos os pontos de hoje foram registrados.";
-}
-
-/**********************
- * INICIALIZAÇÃO
- **********************/
-carregarConfig();
-showLogin();
-</script>
+      const hoje = new Date().toLocaleDateString("pt-BR");
+      const pontosHoje = dadosUsuario.filter(p => p.data === hoje);
+      const restante = 4 - pontosHoje.length;
+      statusMsg.textContent = restante > 0
+        ? `Faltam ${restante} ponto${restante > 1 ? "s" : ""} hoje.`
+        : "✅ Todos os pontos de hoje foram registrados.";
+    }
+  </script>
 </body>
 </html>
-
