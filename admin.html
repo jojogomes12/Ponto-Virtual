@@ -392,26 +392,103 @@ selectMesAno.addEventListener("change", e => {
  **********************/
 function renderizarPontos() {
   listaPontosEdit.innerHTML = "";
+
   const pontos = pontosDB[usuarioSelecionado][mesAnoSelecionado] || [];
-  if (!pontos.length) return listaPontosEdit.innerHTML = '<p class="text-gray-500 text-center">Nenhum ponto registrado.</p>';
+  if (!pontos.length) {
+    listaPontosEdit.innerHTML = '<p class="text-gray-500 text-center">Nenhum ponto registrado.</p>';
+    return;
+  }
+
+  // 🔹 Container com botões de exportação
+  const exportContainer = document.createElement("div");
+  exportContainer.className = "flex justify-end mb-3 gap-2";
+
+  exportContainer.innerHTML = `
+    <button id="exportExcel" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-sm transition">Exportar Excel</button>
+    <button id="previsualizarBtn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">Pré-visualizar PDF</button>
+    <button id="exportPDF" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-sm transition">Exportar PDF</button>
+  `;
+
+  listaPontosEdit.appendChild(exportContainer);
+
+  // 🔹 Agrupar pontos por data
   const agrupado = {};
-  pontos.forEach(p => (agrupado[p.data] = agrupado[p.data] || []).push(p));
-  Object.keys(agrupado).forEach(data => {
+  pontos.forEach(p => {
+    if (!agrupado[p.data]) agrupado[p.data] = [];
+    agrupado[p.data].push(p);
+  });
+
+  // 🔹 Criar tabela
+  const table = document.createElement("table");
+  table.id = "tabelaPontos";
+  table.className = "w-full text-sm border border-gray-700 rounded-lg overflow-hidden";
+
+  table.innerHTML = `
+    <thead class="bg-[#111113] text-gray-300 border-b border-gray-700">
+      <tr>
+        <th class="px-4 py-2 text-left">Data</th>
+        <th class="px-4 py-2 text-left">Horários Registrados</th>
+        <th class="px-4 py-2 text-right">Ações</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  `;
+
+  const tbody = table.querySelector("tbody");
+
+  Object.keys(agrupado).sort((a, b) => {
+    const [d1, m1, y1] = a.split('/');
+    const [d2, m2, y2] = b.split('/');
+    return new Date(y1, m1 - 1, d1) - new Date(y2, m2 - 1, d2);
+  }).forEach(data => {
     const pontosDia = agrupado[data];
     const resumo = pontosDia.map(p => `${p.hora} (${p.tipo})`).join(", ");
-    const card = document.createElement("div");
-    card.className = "bg-[#111113] border border-gray-700 rounded p-4 flex justify-between items-center";
-    card.innerHTML = `
-      <div>
-        <p class="text-accent font-semibold">${data}</p>
-        <p class="text-sm text-gray-400">${resumo}</p>
-      </div>
-      <button class="editarDiaBtn bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm" data-data="${data}">✏️ Editar</button>
+
+    const tr = document.createElement("tr");
+    tr.className = "border-b border-gray-700 hover:bg-gray-800 transition";
+
+    tr.innerHTML = `
+      <td class="px-4 py-2 text-accent font-semibold">${data}</td>
+      <td class="px-4 py-2 text-gray-300">${resumo}</td>
+      <td class="px-4 py-2 text-right">
+        <button class="editarDiaBtn bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm" data-data="${data}">
+          ✏️ Editar
+        </button>
+      </td>
     `;
-    listaPontosEdit.appendChild(card);
+
+    tbody.appendChild(tr);
   });
-  document.querySelectorAll(".editarDiaBtn").forEach(btn => btn.addEventListener("click", e => abrirModalEditar(e.target.dataset.data)));
+
+  listaPontosEdit.appendChild(table);
+
+  // 🔹 Delegação de eventos para exportação e edição
+  listaPontosEdit.addEventListener("click", (e) => {
+    const btn = e.target;
+
+    if (btn.id === "previsualizarBtn") {
+      if (!usuarioSelecionado || !mesAnoSelecionado) return showModal("Atenção", "Selecione um usuário e mês/ano!");
+      const doc = exportarPDF(usuarioSelecionado, mesAnoSelecionado);
+      window.open(doc.output("bloburl"), "_blank");
+    }
+
+    if (btn.id === "exportPDF") {
+      if (!usuarioSelecionado || !mesAnoSelecionado) return showModal("Atenção", "Selecione um usuário e mês/ano!");
+      const doc = exportarPDF(usuarioSelecionado, mesAnoSelecionado);
+      doc.save(`${usuarioSelecionado}_${mesAnoSelecionado}.pdf`);
+    }
+
+    if (btn.id === "exportExcel") {
+      if (!usuarioSelecionado || !mesAnoSelecionado) return showModal("Atenção", "Selecione um usuário e mês/ano!");
+      exportarExcel(usuarioSelecionado, mesAnoSelecionado);
+    }
+
+    if (btn.classList.contains("editarDiaBtn")) {
+      abrirModalEditar(btn.dataset.data);
+    }
+  }, { once: false });
 }
+
 
 /**********************
  * MODAL EDITAR DIA
@@ -495,6 +572,130 @@ abaPontosUsuarios.addEventListener("click", () => {
   tabLocalConfig.classList.add("hidden");
 });
 </script>
+<!-- Script para exportar excel-->
+ <script>
+    // 🔸 Exportar para Excel
+function exportarExcel(usuario, mesAno) {
+  const tabela = document.getElementById("tabelaPontos");
+  const linhas = [["Data", "Horários Registrados"]];
+
+  for (let i = 1; i < tabela.rows.length; i++) {
+    const data = tabela.rows[i].cells[0].innerText;
+    const horarios = tabela.rows[i].cells[1].innerText;
+    linhas.push([data, horarios]);
+  }
+
+  let csvContent = "data:text/csv;charset=utf-8," + linhas.map(e => e.join(";")).join("\n");
+  const link = document.createElement("a");
+  link.href = encodeURI(csvContent);
+  link.download = `${usuario}_${mesAno}.csv`;
+  link.click();
+}
+
+/**********************
+ * EXPORTAR PDF E EXCEL
+ **********************/
+
+// 🔹 Função para gerar PDF
+function exportarPDF(usuario, mesAno) {
+  const doc = new window.jspdf.jsPDF();
+  const pontos = pontosDB[usuario][mesAno] || [];
+  const dias = {};
+
+  // Agrupar pontos por data
+  pontos.forEach(p => {
+    if (!dias[p.data]) dias[p.data] = [];
+    dias[p.data].push(p);
+  });
+
+  const body = [];
+  Object.keys(dias).sort((a,b) => {
+    const [d1,m1,y1] = a.split('/');
+    const [d2,m2,y2] = b.split('/');
+    return new Date(y1,m1-1,d1) - new Date(y2,m2-1,d2);
+  }).forEach(data => {
+    const colunas = ["", "", "", ""];
+    dias[data].forEach((pt, i) => {
+      if (pt.tipo.toLowerCase().includes("entrada")) colunas[i] = pt.hora;
+      if (pt.tipo.toLowerCase().includes("saída") || pt.tipo.toLowerCase().includes("saida")) colunas[i] = pt.hora;
+    });
+    body.push([data, ...colunas]);
+  });
+
+  doc.setFontSize(14);
+  doc.text(`Relatório de Pontos - ${usuario}`, 14, 15);
+  doc.setFontSize(10);
+  doc.text(`Período: ${mesAno}`, 14, 22);
+
+  doc.autoTable({
+    head: [["Data", "Entrada 1", "Saída 1", "Entrada 2", "Saída 2"]],
+    body: body,
+    startY: 28,
+    styles: { fontSize: 10, textColor: 0, fillColor: [255,255,255] },
+    headStyles: { fillColor: [249,115,22], textColor: [0,0,0], fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [255,255,255] },
+    didDrawCell: function (data) {
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.3);
+      doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height);
+    }
+  });
+
+  return doc;
+}
+
+// 🔹 Pré-visualizar PDF
+document.getElementById("previsualizarBtn").addEventListener("click", () => {
+  if (!usuarioSelecionado || !mesAnoSelecionado) return showModal("Atenção", "Selecione um usuário e mês/ano!");
+  const doc = exportarPDF(usuarioSelecionado, mesAnoSelecionado);
+  window.open(doc.output("bloburl"), "_blank"); // abre em nova aba
+});
+
+// 🔹 Exportar PDF
+document.getElementById("exportPDF").addEventListener("click", () => {
+  if (!usuarioSelecionado || !mesAnoSelecionado) return showModal("Atenção", "Selecione um usuário e mês/ano!");
+  const doc = exportarPDF(usuarioSelecionado, mesAnoSelecionado);
+  doc.save(`${usuarioSelecionado}_${mesAnoSelecionado}.pdf`);
+});
+
+// 🔹 Exportar Excel (CSV)
+function exportarExcel(usuario, mesAno) {
+  const pontos = pontosDB[usuario][mesAno] || [];
+  const dias = {};
+  pontos.forEach(p => {
+    if (!dias[p.data]) dias[p.data] = [];
+    dias[p.data].push(p);
+  });
+
+  const linhas = [["Data", "Entrada 1", "Saída 1", "Entrada 2", "Saída 2"]];
+  Object.keys(dias).sort((a,b) => {
+    const [d1,m1,y1] = a.split('/');
+    const [d2,m2,y2] = b.split('/');
+    return new Date(y1,m1-1,d1) - new Date(y2,m2-1,d2);
+  }).forEach(data => {
+    const p = dias[data];
+    const colunas = ["", "", "", ""];
+    p.forEach((pt, i) => {
+      if (pt.tipo.toLowerCase().includes("entrada")) colunas[i] = pt.hora;
+      if (pt.tipo.toLowerCase().includes("saída") || pt.tipo.toLowerCase().includes("saida")) colunas[i] = pt.hora;
+    });
+    linhas.push([data, ...colunas]);
+  });
+
+  let csvContent = "data:text/csv;charset=utf-8," + linhas.map(e => e.join(";")).join("\n");
+  const link = document.createElement("a");
+  link.href = encodeURI(csvContent);
+  link.download = `${usuario}_${mesAno}.csv`;
+  link.click();
+}
+
+document.getElementById("exportExcel").addEventListener("click", () => {
+  if (!usuarioSelecionado || !mesAnoSelecionado) return showModal("Atenção", "Selecione um usuário e mês/ano!");
+  exportarExcel(usuarioSelecionado, mesAnoSelecionado);
+});
+ </script>
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
 </body>
 </html>
