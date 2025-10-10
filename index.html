@@ -33,13 +33,41 @@
     </div>
   </div>
 
+  <!-- Modal -->
+  <div id="modalOverlay" class="fixed inset-0 bg-black/60 hidden justify-center items-center z-50 transition-opacity duration-300">
+    <div id="modalBox" class="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-sm w-full scale-90 opacity-0 transition-all duration-300">
+      <h3 id="modalTitle" class="text-lg font-semibold mb-2 text-orange-400"></h3>
+      <p id="modalMessage" class="text-gray-300 mb-4"></p>
+      <div class="text-right">
+        <button id="closeModalBtn" class="bg-orange-500 text-white px-4 py-1.5 rounded hover:bg-orange-600 transition">Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const CONFIG = {
       JSONBIN_API_KEY: "$2a$10$KDi5Sc6Jkhx12a3rQxYSIug08jdJNHTIU1xEq7hbeJCubqyZSQ3ii",
       DATA_BIN_ID: "68e3c7c8d0ea881f40975071",
+      CONFIG_BIN_ID: "68e3c7b143b1c97be95c6112",
       JSONBIN_URL: "https://api.jsonbin.io/v3/b/"
     };
 
+    const raioPermitido = 20; // metros
+    const etapas = ["Entrada da manhã", "Saída para almoço", "Retorno do almoço", "Saída final"];
+    let configDB = {};
+
+    // Elementos do DOM
+    const welcomeUser = document.getElementById("welcomeUser");
+    const pontosGrid = document.getElementById("pontosGrid");
+    const statusMsg = document.getElementById("statusMsg");
+    const pontoBtn = document.getElementById("pontoBtn");
+    const modalOverlay = document.getElementById("modalOverlay");
+    const modalBox = document.getElementById("modalBox");
+    const modalTitle = document.getElementById("modalTitle");
+    const modalMessage = document.getElementById("modalMessage");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+
+    // Funções da API
     async function getBin(binId) {
       try {
         const res = await fetch(`${CONFIG.JSONBIN_URL}${binId}/latest`, {
@@ -52,21 +80,82 @@
         const data = await res.json();
         return data.record || {};
       } catch (err) {
-        alert("Erro ao conectar à API: " + err.message);
+        showModal("Erro", "Erro ao conectar à API: " + err.message);
         return {};
       }
     }
 
-    const usuario = sessionStorage.getItem("usuarioLogado");
-    const welcomeUser = document.getElementById("welcomeUser");
-    const pontosGrid = document.getElementById("pontosGrid");
-    const statusMsg = document.getElementById("statusMsg");
+    async function updateBin(binId, content) {
+      try {
+        const res = await fetch(`${CONFIG.JSONBIN_URL}${binId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Master-Key": CONFIG.JSONBIN_API_KEY
+          },
+          body: JSON.stringify(content)
+        });
+        return res.ok;
+      } catch (err) {
+        console.error("Erro ao atualizar JSONBin:", err);
+        return false;
+      }
+    }
 
+    // Modal
+    function showModal(title, message) {
+      modalTitle.textContent = title;
+      modalMessage.textContent = message;
+      modalOverlay.classList.remove("hidden");
+      setTimeout(() => {
+        modalOverlay.classList.add("flex");
+        modalBox.classList.remove("opacity-0", "scale-90");
+        modalBox.classList.add("opacity-100", "scale-100");
+      }, 10);
+    }
+
+    function closeModal() {
+      modalBox.classList.remove("opacity-100", "scale-100");
+      modalBox.classList.add("opacity-0", "scale-90");
+      setTimeout(() => {
+        modalOverlay.classList.add("hidden");
+        modalOverlay.classList.remove("flex");
+      }, 200);
+    }
+
+    closeModalBtn.addEventListener("click", closeModal);
+    modalOverlay.addEventListener("click", (e) => {
+      if (e.target === modalOverlay) closeModal();
+    });
+
+    // Calcular distância
+    const calcularDistancia = (lat1, lon1, lat2, lon2) => {
+      const R = 6371e3;
+      const φ1 = lat1 * Math.PI / 180;
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    };
+
+    // Carregar configurações
+    async function carregarConfig() {
+      configDB = await getBin(CONFIG.CONFIG_BIN_ID);
+      if (!configDB.local_ponto) {
+        configDB.local_ponto = { lat: -22.970349, lng: -42.952487 };
+        await updateBin(CONFIG.CONFIG_BIN_ID, configDB);
+      }
+    }
+
+    // Verificar login
+    const usuario = sessionStorage.getItem("usuarioLogado");
     if (!usuario) {
       window.location.href = "login.html";
     } else {
       welcomeUser.textContent = "Usuário: " + usuario;
-      carregarPontos();
+      carregarConfig().then(() => carregarPontos());
     }
 
     document.getElementById("logoutBtn").addEventListener("click", () => {
@@ -74,6 +163,7 @@
       window.location.href = "login.html";
     });
 
+    // Carregar pontos
     async function carregarPontos() {
       const pontosDB = await getBin(CONFIG.DATA_BIN_ID);
       const mesAno = new Date().toLocaleString("pt-BR", { month: "2-digit", year: "numeric" }).replace("/", "-");
@@ -112,6 +202,85 @@
         ? `Faltam ${restante} ponto${restante > 1 ? "s" : ""} hoje.`
         : "✅ Todos os pontos de hoje foram registrados.";
     }
+
+    // Bater ponto com verificação de localização
+    pontoBtn.addEventListener("click", () => {
+      const localPermitido = configDB.local_ponto;
+      
+      if (!navigator.geolocation) {
+        return showModal("Erro", "Seu navegador não suporta geolocalização!");
+      }
+
+      pontoBtn.disabled = true;
+      pontoBtn.textContent = "Verificando localização...";
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          const distancia = calcularDistancia(
+            latitude, 
+            longitude, 
+            localPermitido.lat, 
+            localPermitido.lng
+          );
+
+          pontoBtn.disabled = false;
+          pontoBtn.textContent = "Bater Ponto";
+
+          if (distancia > raioPermitido) {
+            showModal(
+              "Fora do ponto", 
+              `Você está fora do ponto (${distancia.toFixed(2)}m de distância). Aproxime-se do local permitido.`
+            );
+          } else {
+            registrarPonto(latitude, longitude);
+          }
+        },
+        (err) => {
+          pontoBtn.disabled = false;
+          pontoBtn.textContent = "Bater Ponto";
+          showModal("Erro", "Erro ao capturar localização: " + err.message);
+        }
+      );
+    });
+
+    // Registrar ponto
+    async function registrarPonto(latitude, longitude) {
+      const pontosDB = await getBin(CONFIG.DATA_BIN_ID);
+      const mesAno = new Date().toLocaleString("pt-BR", { month: "2-digit", year: "numeric" }).replace("/", "-");
+      const hoje = new Date().toLocaleDateString("pt-BR");
+
+      if (!pontosDB[usuario]) pontosDB[usuario] = {};
+      if (!pontosDB[usuario][mesAno]) pontosDB[usuario][mesAno] = [];
+
+      const pontos = pontosDB[usuario][mesAno];
+      const pontosHoje = pontos.filter(p => p.data === hoje);
+
+      if (pontosHoje.length >= 4) {
+        return showModal("Aviso", "⚠️ Você já registrou os 4 pontos de hoje.");
+      }
+
+      const hora = new Date().toLocaleTimeString("pt-BR");
+      const tipo = etapas[pontosHoje.length];
+
+      pontos.push({
+        data: hoje,
+        hora,
+        tipo,
+        lat: latitude.toFixed(6),
+        lng: longitude.toFixed(6)
+      });
+
+      const success = await updateBin(CONFIG.DATA_BIN_ID, pontosDB);
+      
+      if (success) {
+        await carregarPontos();
+        showModal("Sucesso", `✅ Ponto registrado com sucesso!\n${tipo} - ${hora}`);
+      } else {
+        showModal("Erro", "Falha ao salvar o ponto. Tente novamente.");
+      }
+    }
   </script>
+
 </body>
 </html>
