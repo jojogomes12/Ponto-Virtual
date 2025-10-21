@@ -26,7 +26,22 @@
     <div class="flex justify-between items-center mb-3">
       <h3 class="text-md font-semibold text-gray-300">Pontos do mês</h3>
     </div>
-    <div id="pontosGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto"></div>
+   <!-- grade de pontos simplificada -->
+<div id="pontosGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto"></div>
+
+<!-- modal de edição de dia -->
+<div id="modalDiaOverlay" class="fixed inset-0 bg-black/60 hidden justify-center items-center z-50 transition-opacity duration-300">
+  <div id="modalDiaBox" class="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full scale-90 opacity-0 transition-all duration-300">
+    <h3 id="modalDiaTitle" class="text-lg font-semibold mb-2 text-orange-400"></h3>
+    <div id="modalDiaContent" class="text-gray-300 mb-4">
+      <!-- horários serão gerados aqui -->
+    </div>
+    <div class="flex justify-between items-center mt-4">
+      <button id="enviarSolicitacaoBtn" class="bg-orange-500 text-white px-4 py-1.5 rounded hover:bg-orange-600 transition">Enviar Solicitação</button>
+      <button id="closeModalDiaBtn" class="bg-gray-600 text-white px-4 py-1.5 rounded hover:bg-gray-500 transition">Fechar</button>
+    </div>
+  </div>
+</div>
 
     <div class="mt-6 text-center">
       <a href="admin.html" class="text-gray-400 hover:text-orange-400 text-sm transition">Área Administrativa</a>
@@ -164,47 +179,170 @@
     });
 
     // Carregar pontos
-    async function carregarPontos() {
-      const pontosDB = await getBin(CONFIG.DATA_BIN_ID);
-      const mesAno = new Date().toLocaleString("pt-BR", { month: "2-digit", year: "numeric" }).replace("/", "-");
-      const dadosUsuario = pontosDB[usuario]?.[mesAno] || [];
+   // nova função para carregar pontos simplificados
+async function carregarPontos() {
+  const pontosDB = await getBin(CONFIG.DATA_BIN_ID);
+  const mesAno = new Date().toLocaleString("pt-BR", { month: "2-digit", year: "numeric" }).replace("/", "-");
+  const dadosUsuario = pontosDB[usuario]?.[mesAno] || [];
 
-      pontosGrid.innerHTML = "";
-      if (dadosUsuario.length === 0) {
-        pontosGrid.innerHTML = `<div class="text-gray-500 text-center col-span-full">Nenhum ponto registrado neste mês.</div>`;
-        return;
-      }
+  // organizar por dia
+  const pontosPorDia = {};
+  dadosUsuario.forEach(p => {
+    if (!pontosPorDia[p.data]) pontosPorDia[p.data] = [];
+    pontosPorDia[p.data].push(p);
+  });
 
-      const pontosPorDia = {};
-      dadosUsuario.forEach(p => {
-        if (!pontosPorDia[p.data]) pontosPorDia[p.data] = [];
-        pontosPorDia[p.data].push(p);
-      });
+  pontosGrid.innerHTML = "";
+  if (!Object.keys(pontosPorDia).length) {
+    pontosGrid.innerHTML = `<div class="text-gray-500 text-center col-span-full">Nenhum ponto registrado neste mês.</div>`;
+    return;
+  }
 
-      Object.keys(pontosPorDia).sort((a, b) => {
-        const [diaA, mesA, anoA] = a.split('/');
-        const [diaB, mesB, anoB] = b.split('/');
-        return new Date(anoB, mesB - 1, diaB) - new Date(anoA, mesA - 1, diaA);
-      }).forEach(dia => {
-        const card = document.createElement("div");
-        card.className = "border border-gray-700 p-3 rounded bg-gray-900";
-        card.innerHTML = `<div class="font-semibold text-orange-400 mb-1">${dia}</div>
-          <ul class="text-sm text-gray-300 space-y-1">
-            ${pontosPorDia[dia].map(p => `<li>${p.tipo} - ${p.hora}</li>`).join("")}
-          </ul>`;
-        pontosGrid.appendChild(card);
-      });
+  Object.keys(pontosPorDia).sort((a,b)=> {
+    const [dA,mA,aA] = a.split('/'); 
+    const [dB,mB,aB] = b.split('/'); 
+    return new Date(aB,mB-1,dB)-new Date(aA,mA-1,dA);
+  }).forEach(dia=>{
+    const card = document.createElement("button");
+    card.className = "border border-gray-700 p-3 rounded bg-gray-900 w-full text-left hover:bg-gray-800 transition font-semibold text-orange-400";
+    card.textContent = dia;
+    card.addEventListener("click", ()=> abrirModalDia(dia, pontosPorDia[dia]));
+    pontosGrid.appendChild(card);
+  });
+}
 
-      const hoje = new Date().toLocaleDateString("pt-BR");
-      const pontosHoje = dadosUsuario.filter(p => p.data === hoje);
-      const restante = 4 - pontosHoje.length;
-      statusMsg.textContent = restante > 0
-        ? `Faltam ${restante} ponto${restante > 1 ? "s" : ""} hoje.`
-        : "✅ Todos os pontos de hoje foram registrados.";
-    }
+// abrir modal de edição do dia
+function abrirModalDia(dia, pontosDia) {
+  modalDiaTitle.textContent = `Pontos - ${dia}`;
+  const tipos = ["Entrada manhã", "Saída almoço", "Retorno almoço", "Saída final"];
+  modalDiaContent.innerHTML = "";
+
+  tipos.forEach((tipo, i) => {
+    const ponto = pontosDia[i];
+    const hora = ponto?.hora || "";
+    modalDiaContent.innerHTML += `
+      <div class="flex justify-between items-center mb-2">
+        <span>${tipo}</span>
+        <input type="time" data-tipo="${tipo}" value="${hora}" class="bg-gray-700 rounded px-2 py-1 text-white w-24" />
+      </div>
+    `;
+  });
+
+  // hora extra
+  modalDiaContent.innerHTML += `
+    <div class="flex justify-between items-center mt-2">
+      <span>Hora Extra</span>
+      <input type="time" id="horaExtraInput" class="bg-gray-700 rounded px-2 py-1 text-white w-24" />
+    </div>
+  `;
+
+  modalDiaOverlay.classList.remove("hidden");
+  setTimeout(()=>{
+    modalDiaOverlay.classList.add("flex");
+    modalDiaBox.classList.remove("opacity-0","scale-90");
+    modalDiaBox.classList.add("opacity-100","scale-100");
+  },10);
+
+  enviarSolicitacaoBtn.onclick = async () => {
+  // Pegar os inputs do modal
+  const inputs = modalDiaContent.querySelectorAll("input[data-tipo]");
+  const alteracoes = [];
+  inputs.forEach(inp => {
+    if (inp.value) alteracoes.push({ tipo: inp.dataset.tipo, novaHora: inp.value });
+  });
+
+  // Hora extra
+  const horaExtra = document.getElementById("horaExtraInput")?.value;
+  if (horaExtra) alteracoes.push({ tipo: "Hora Extra", novaHora: horaExtra });
+
+  // Observação
+  const observacao = document.getElementById("observacaoInput")?.value || "";
+
+  // Dias selecionados (o modalDiaTitle tem o dia)
+  const dias = [modalDiaTitle.textContent.split(" - ")[1]];
+
+  // Chamar a função de envio
+  await enviarSolicitacao(usuario, dias, alteracoes, observacao);
+
+  // Fechar modal
+  closeModalDia();
+};
+  
+}
+async function enviarSolicitacao(usuario, dias, alteracoes, observacao="") {
+  const SOLICITACOES_BIN_ID = "68f73b29d0ea881f40b048a1";
+
+  // buscar as solicitações atuais
+  const dbSolicitacoes = await getBin(SOLICITACOES_BIN_ID) || {};
+
+  if (!dbSolicitacoes[usuario]) dbSolicitacoes[usuario] = [];
+
+  const novaSolicitacao = {
+    id: "req-" + Date.now(), // id único
+    dias,
+    alteracoes,
+    observacao,
+    status: "pendente",
+    dataSolicitacao: new Date().toLocaleString("pt-BR")
+  };
+
+  dbSolicitacoes[usuario].push(novaSolicitacao);
+
+  const success = await updateBin(SOLICITACOES_BIN_ID, dbSolicitacoes);
+  if (success) showModal("Sucesso","✅ Solicitação enviada!");
+  else showModal("Erro","Falha ao enviar solicitação.");
+}
+
+
+// fechar modal
+function closeModalDia() {
+  modalDiaBox.classList.remove("opacity-100","scale-100");
+  modalDiaBox.classList.add("opacity-0","scale-90");
+  setTimeout(()=>{
+    modalDiaOverlay.classList.add("hidden");
+    modalDiaOverlay.classList.remove("flex");
+  },200);
+}
+closeModalDiaBtn.addEventListener("click", closeModalDia);
+modalDiaOverlay.addEventListener("click", e=>{
+  if(e.target===modalDiaOverlay) closeModalDia();
+});
+
+// registrar ponto agora já com status: "pendente"
+async function registrarPonto(latitude, longitude) {
+  const pontosDB = await getBin(CONFIG.DATA_BIN_ID);
+  const mesAno = new Date().toLocaleString("pt-BR", { month: "2-digit", year: "numeric" }).replace("/", "-");
+  const hoje = new Date().toLocaleDateString("pt-BR");
+
+  if (!pontosDB[usuario]) pontosDB[usuario] = {};
+  if (!pontosDB[usuario][mesAno]) pontosDB[usuario][mesAno] = [];
+
+  const pontos = pontosDB[usuario][mesAno];
+  const pontosHoje = pontos.filter(p => p.data === hoje);
+  if (pontosHoje.length >= 4) return showModal("Aviso","⚠️ Já registrou os 4 pontos de hoje.");
+
+  const hora = new Date().toLocaleTimeString("pt-BR");
+  const tipo = etapas[pontosHoje.length];
+
+  pontos.push({
+    data: hoje,
+    hora,
+    tipo,
+    lat: latitude.toFixed(6),
+    lng: longitude.toFixed(6),
+    status: "pendente"
+  });
+
+  const success = await updateBin(CONFIG.DATA_BIN_ID, pontosDB);
+  if(success){
+    await carregarPontos();
+    showModal("Sucesso", `✅ Ponto registrado com sucesso!\n${tipo} - ${hora}`);
+  } else showModal("Erro","Falha ao salvar o ponto.");
+}
+
 
     // Bater ponto com verificação de localização
-    pontoBtn.addEventListener("click", () => {
+ pontoBtn.addEventListener("click", async () => {
       const localPermitido = configDB.local_ponto;
       
       if (!navigator.geolocation) {
@@ -212,10 +350,51 @@
       }
 
       pontoBtn.disabled = true;
-      pontoBtn.textContent = "Verificando localização...";
+      pontoBtn.textContent = "Registrando...";
 
+      // 1. REGISTRAR IMEDIATAMENTE com status pendente
+      const pontosDB = await getBin(CONFIG.DATA_BIN_ID);
+      const mesAno = new Date().toLocaleString("pt-BR", { month: "2-digit", year: "numeric" }).replace("/", "-");
+      const hoje = new Date().toLocaleDateString("pt-BR");
+
+      if (!pontosDB[usuario]) pontosDB[usuario] = {};
+      if (!pontosDB[usuario][mesAno]) pontosDB[usuario][mesAno] = [];
+
+      const pontos = pontosDB[usuario][mesAno];
+      const pontosHoje = pontos.filter(p => p.data === hoje);
+
+      if (pontosHoje.length >= 4) {
+        pontoBtn.disabled = false;
+        pontoBtn.textContent = "Bater Ponto";
+        return showModal("Aviso", "⚠️ Você já registrou os 4 pontos de hoje.");
+      }
+
+      const hora = new Date().toLocaleTimeString("pt-BR");
+      const tipo = etapas[pontosHoje.length];
+
+      // Criar ponto com status pendente
+      const novoPonto = {
+        data: hoje,
+        hora,
+        tipo,
+        status: "pendente",
+        lat: null,
+        lng: null,
+        distancia: null
+      };
+
+      pontos.push(novoPonto);
+      await updateBin(CONFIG.DATA_BIN_ID, pontosDB);
+
+      showModal("Sucesso", `✅ Ponto registrado!\n${tipo} - ${hora}\n\nVerificando localização...`);
+      await carregarPontos();
+
+      pontoBtn.disabled = false;
+      pontoBtn.textContent = "Bater Ponto";
+
+      // 2. CAPTURAR LOCALIZAÇÃO E VALIDAR (assíncrono)
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
+        async (pos) => {
           const { latitude, longitude } = pos.coords;
           const distancia = calcularDistancia(
             latitude, 
@@ -224,22 +403,50 @@
             localPermitido.lng
           );
 
-          pontoBtn.disabled = false;
-          pontoBtn.textContent = "Bater Ponto";
+          // Atualizar o ponto com a localização
+          const pontosDBAtualizado = await getBin(CONFIG.DATA_BIN_ID);
+          const pontosAtualizados = pontosDBAtualizado[usuario][mesAno];
+          const pontoRegistrado = pontosAtualizados.find(p => 
+            p.data === hoje && p.hora === hora && p.tipo === tipo
+          );
 
-          if (distancia > raioPermitido) {
-            showModal(
-              "Fora do ponto", 
-              `Você está fora do ponto (${distancia.toFixed(2)}m de distância). Aproxime-se do local permitido.`
-            );
-          } else {
-            registrarPonto(latitude, longitude);
+          if (pontoRegistrado) {
+            pontoRegistrado.lat = latitude.toFixed(6);
+            pontoRegistrado.lng = longitude.toFixed(6);
+            pontoRegistrado.distancia = distancia.toFixed(2);
+            
+            // Validação automática
+            if (distancia <= raioPermitido) {
+              pontoRegistrado.status = "aprovado";
+              statusMsg.textContent = `✅ Localização validada (${distancia.toFixed(2)}m)`;
+              statusMsg.className = "text-sm text-green-400 mt-2";
+            } else {
+              pontoRegistrado.status = "fora_do_raio";
+              statusMsg.textContent = `⚠️ Aguardando análise`;
+              statusMsg.className = "text-sm text-yellow-400 mt-2";
+            }
+
+            await updateBin(CONFIG.DATA_BIN_ID, pontosDBAtualizado);
+            await carregarPontos();
           }
         },
-        (err) => {
-          pontoBtn.disabled = false;
-          pontoBtn.textContent = "Bater Ponto";
-          showModal("Erro", "Erro ao capturar localização: " + err.message);
+        async (err) => {
+          // Se erro na geolocalização, marcar ponto para revisão
+          const pontosDBAtualizado = await getBin(CONFIG.DATA_BIN_ID);
+          const pontosAtualizados = pontosDBAtualizado[usuario][mesAno];
+          const pontoRegistrado = pontosAtualizados.find(p => 
+            p.data === hoje && p.hora === hora && p.tipo === tipo
+          );
+
+          if (pontoRegistrado) {
+            pontoRegistrado.status = "erro_localizacao";
+            pontoRegistrado.erroGPS = err.message;
+            await updateBin(CONFIG.DATA_BIN_ID, pontosDBAtualizado);
+            await carregarPontos();
+          }
+
+          statusMsg.textContent = `⚠️ Aguardando análise`;
+          statusMsg.className = "text-sm text-yellow-400 mt-2";
         }
       );
     });
