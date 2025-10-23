@@ -49,7 +49,15 @@
     <div class="bg-darkcard rounded-2xl shadow-lg border border-gray-700/50 p-6 mb-6">
       <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-accent">Painel Administrativo</h1>
-        <button id="logoutAdminBtn" class="text-red-400 hover:text-red-500 text-sm font-medium">Sair</button>
+        <div class="flex items-center gap-4">
+          <button id="notificacoesBtn" class="relative text-gray-300 hover:text-accent transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            <span id="badgeNotificacoes" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold"></span>
+          </button>
+          <button id="logoutAdminBtn" class="text-red-400 hover:text-red-500 text-sm font-medium">Sair</button>
+        </div>
       </div>
 
       <!-- Abas -->
@@ -77,10 +85,10 @@
 
         <div class="flex flex-col sm:flex-row gap-3 mb-4">
           <button id="usarLocalAtual" class="flex-1 bg-blue-600 text-white py-2.5 rounded font-semibold hover:bg-blue-700 transition">
-             Usar Localização Atual
+            📍 Usar Localização Atual
           </button>
           <button id="salvarLocal" class="flex-1 bg-green-600 text-white py-2.5 rounded font-semibold hover:bg-green-700 transition">
-             Salvar Local
+            💾 Salvar Local
           </button>
         </div>
 
@@ -112,7 +120,7 @@
     </div>
   </div>
 
-  <!-- Modal -->
+  <!-- Modal Genérico -->
   <div id="modalOverlay" class="fixed inset-0 bg-black/60 hidden justify-center items-center z-50 transition-opacity duration-300">
     <div id="modalBox" class="bg-darkcard border border-gray-700 rounded-xl p-6 max-w-sm w-full scale-90 opacity-0 transition-all duration-300">
       <h3 id="modalTitle" class="text-lg font-semibold mb-2 text-accent"></h3>
@@ -148,6 +156,30 @@
     </div>
   </div>
 
+  <!-- Modal Notificações -->
+  <div id="modalNotificacoes" class="fixed inset-0 bg-black/60 hidden justify-center items-center z-50">
+    <div class="bg-darkcard border border-gray-700 rounded-xl p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-semibold text-accent">🔔 Solicitações de Alteração de Ponto</h3>
+        <button id="closeNotificacoesBtn" class="text-gray-400 hover:text-white text-xl">✕</button>
+      </div>
+      <div id="listaNotificacoes" class="space-y-3"></div>
+    </div>
+  </div>
+
+  <!-- Modal Detalhes Solicitação -->
+  <div id="modalDetalhesSolicitacao" class="fixed inset-0 bg-black/60 hidden justify-center items-center z-[60]">
+    <div class="bg-darkcard border border-gray-700 rounded-xl p-6 max-w-2xl w-full">
+      <h3 class="text-lg font-semibold mb-4 text-accent">Detalhes da Solicitação</h3>
+      <div id="detalhesSolicitacaoContent" class="mb-4"></div>
+      <div class="flex gap-3 mt-4">
+        <button id="aprovarSolicitacaoBtn" class="flex-1 bg-green-600 text-white py-2 rounded font-semibold hover:bg-green-700 transition">✓ Aprovar</button>
+        <button id="rejeitarSolicitacaoBtn" class="flex-1 bg-red-600 text-white py-2 rounded font-semibold hover:bg-red-700 transition">✕ Rejeitar</button>
+        <button id="cancelDetalhesSolicitacaoBtn" class="flex-1 bg-gray-600 text-white py-2 rounded font-semibold hover:bg-gray-700 transition">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
 <script>
 /**********************
  * CONFIGURAÇÃO
@@ -170,6 +202,7 @@ let usuarioSelecionado = null;
 let mesAnoSelecionado = null;
 let diaEditando = null;
 let pontosEditDia = [];
+let solicitacaoAtual = null;
 
 /**********************
  * ELEMENTOS
@@ -204,6 +237,16 @@ const tabelaPontosDia = document.getElementById("tabelaPontosDia");
 const addHoraBtn = document.getElementById("addHoraBtn");
 const saveDiaBtn = document.getElementById("saveDiaBtn");
 const cancelDiaBtn = document.getElementById("cancelDiaBtn");
+const notificacoesBtn = document.getElementById("notificacoesBtn");
+const badgeNotificacoes = document.getElementById("badgeNotificacoes");
+const modalNotificacoes = document.getElementById("modalNotificacoes");
+const closeNotificacoesBtn = document.getElementById("closeNotificacoesBtn");
+const listaNotificacoes = document.getElementById("listaNotificacoes");
+const modalDetalhesSolicitacao = document.getElementById("modalDetalhesSolicitacao");
+const detalhesSolicitacaoContent = document.getElementById("detalhesSolicitacaoContent");
+const aprovarSolicitacaoBtn = document.getElementById("aprovarSolicitacaoBtn");
+const rejeitarSolicitacaoBtn = document.getElementById("rejeitarSolicitacaoBtn");
+const cancelDetalhesSolicitacaoBtn = document.getElementById("cancelDetalhesSolicitacaoBtn");
 
 /**********************
  * JSONBIN API
@@ -270,16 +313,198 @@ loginAdminBtn.addEventListener("click", async () => {
     configDB = await getBin(CONFIG.CONFIG_BIN_ID);
     if (!configDB.local_ponto)
       configDB.local_ponto = { lat: -22.970349, lng: -42.952487, endereco: "" };
+    if (!pontosDB.solicitacoes) pontosDB.solicitacoes = {};
     loginAdmin.classList.add("hidden");
     painelAdmin.classList.remove("hidden");
     carregarUsuarios();
     atualizarLocalTexto();
+    atualizarBadgeNotificacoes();
   } else showModal("Erro", "Usuário ou senha incorretos!");
 });
 logoutAdminBtn.addEventListener("click", () => location.reload());
 
 /**********************
- * LOCAL CONFIG COM AUTOCOMPLETE
+ * NOTIFICAÇÕES
+ **********************/
+function atualizarBadgeNotificacoes() {
+  let total = 0;
+  Object.keys(pontosDB.solicitacoes || {}).forEach(usuario => {
+    if (Array.isArray(pontosDB.solicitacoes[usuario])) {
+      total += pontosDB.solicitacoes[usuario].filter(s => s.status === "pendente").length;
+    }
+  });
+  
+  if (total > 0) {
+    badgeNotificacoes.textContent = total;
+    badgeNotificacoes.classList.remove("hidden");
+  } else {
+    badgeNotificacoes.classList.add("hidden");
+  }
+}
+
+notificacoesBtn.addEventListener("click", () => {
+  renderizarNotificacoes();
+  modalNotificacoes.classList.remove("hidden");
+  modalNotificacoes.classList.add("flex");
+});
+
+closeNotificacoesBtn.addEventListener("click", () => {
+  modalNotificacoes.classList.add("hidden");
+  modalNotificacoes.classList.remove("flex");
+});
+
+function renderizarNotificacoes() {
+  listaNotificacoes.innerHTML = "";
+  
+  let temPendentes = false;
+  Object.keys(pontosDB.solicitacoes || {}).forEach(usuario => {
+    if (Array.isArray(pontosDB.solicitacoes[usuario])) {
+      pontosDB.solicitacoes[usuario].forEach(solicitacao => {
+        if (solicitacao.status === "pendente") {
+          temPendentes = true;
+          const card = document.createElement("div");
+          card.className = "bg-[#111113] border border-gray-700 rounded-lg p-4 hover:border-accent transition cursor-pointer";
+          card.innerHTML = `
+            <div class="flex justify-between items-start mb-2">
+              <div class="flex-1">
+                <h4 class="font-semibold text-accent">${usuario}</h4>
+                <p class="text-sm text-gray-400">Solicitado em: ${solicitacao.dataSolicitacao}</p>
+              </div>
+              <span class="bg-yellow-600 text-white text-xs px-2 py-1 rounded">⏳ Pendente</span>
+            </div>
+            <p class="text-sm text-gray-300 mb-2">
+              <strong>Data:</strong> ${solicitacao.data}
+            </p>
+            <p class="text-sm text-gray-300 mb-2">
+              <strong>Alterações:</strong> ${solicitacao.alteracoes.length} horário(s)
+            </p>
+            ${solicitacao.observacao ? `<p class="text-sm text-gray-400 italic border-l-2 border-gray-600 pl-2 mt-2">"${solicitacao.observacao}"</p>` : ""}
+          `;
+          card.addEventListener("click", () => abrirDetalhesSolicitacao(usuario, solicitacao));
+          listaNotificacoes.appendChild(card);
+        }
+      });
+    }
+  });
+  
+  if (!temPendentes) {
+    listaNotificacoes.innerHTML = '<p class="text-center text-gray-500 py-8">Nenhuma solicitação pendente 🎉</p>';
+  }
+}
+
+function abrirDetalhesSolicitacao(usuario, solicitacao) {
+  solicitacaoAtual = { usuario, solicitacao };
+  
+  detalhesSolicitacaoContent.innerHTML = `
+    <div class="space-y-3">
+      <div class="bg-[#111113] p-3 rounded border border-gray-700">
+        <p class="text-sm text-gray-400">Usuário:</p>
+        <p class="font-semibold text-accent">${usuario}</p>
+      </div>
+      
+      <div class="bg-[#111113] p-3 rounded border border-gray-700">
+        <p class="text-sm text-gray-400">Data:</p>
+        <p class="text-gray-300">${solicitacao.data}</p>
+      </div>
+      
+      <div class="bg-[#111113] p-3 rounded border border-gray-700">
+        <p class="text-sm text-gray-400 mb-2">Alterações solicitadas:</p>
+        <div class="space-y-2">
+          ${solicitacao.alteracoes.map(alt => `
+            <div class="bg-[#0a0a0c] p-2 rounded">
+              <p class="text-xs text-gray-400 mb-1">${alt.tipo}</p>
+              <div class="flex items-center gap-2 text-sm">
+                <span class="text-red-400 line-through font-mono">${alt.horaAtual}</span>
+                <span class="text-gray-500">→</span>
+                <span class="text-accent font-mono font-semibold">${alt.horaNova}</span>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+      
+      ${solicitacao.observacao ? `
+        <div class="bg-[#111113] p-3 rounded border border-gray-700">
+          <p class="text-sm text-gray-400">Observação:</p>
+          <p class="text-gray-300 italic">"${solicitacao.observacao}"</p>
+        </div>
+      ` : ""}
+      
+      <div class="bg-[#111113] p-3 rounded border border-gray-700">
+        <p class="text-sm text-gray-400">Data da solicitação:</p>
+        <p class="text-gray-300">${solicitacao.dataSolicitacao}</p>
+      </div>
+    </div>
+  `;
+  
+  modalDetalhesSolicitacao.classList.remove("hidden");
+  modalDetalhesSolicitacao.classList.add("flex");
+}
+
+cancelDetalhesSolicitacaoBtn.addEventListener("click", () => {
+  modalDetalhesSolicitacao.classList.add("hidden");
+  modalDetalhesSolicitacao.classList.remove("flex");
+});
+
+aprovarSolicitacaoBtn.addEventListener("click", async () => {
+  if (!solicitacaoAtual) return;
+  
+  const { usuario, solicitacao } = solicitacaoAtual;
+  const mesAno = solicitacao.mesAno;
+  
+  // Aplicar alterações nos pontos
+  if (!pontosDB[usuario] || !pontosDB[usuario][mesAno]) {
+    showModal("Erro", "Dados do usuário não encontrados.");
+    return;
+  }
+  
+  // Atualizar cada ponto alterado
+  solicitacao.alteracoes.forEach(alteracao => {
+    const indice = alteracao.indice;
+    if (pontosDB[usuario][mesAno][indice]) {
+      pontosDB[usuario][mesAno][indice].hora = alteracao.horaNova;
+    }
+  });
+  
+  // Atualizar status da solicitação
+  solicitacao.status = "aprovada";
+  
+  // Salvar alterações
+  const sucesso = await updateBin(CONFIG.DATA_BIN_ID, pontosDB);
+  
+  if (sucesso) {
+    showModal("Sucesso", "✅ Solicitação aprovada e pontos atualizados!");
+    modalDetalhesSolicitacao.classList.add("hidden");
+    modalDetalhesSolicitacao.classList.remove("flex");
+    atualizarBadgeNotificacoes();
+    renderizarNotificacoes();
+    if (usuarioSelecionado && mesAnoSelecionado) renderizarPontos();
+  }
+});
+
+rejeitarSolicitacaoBtn.addEventListener("click", async () => {
+  if (!solicitacaoAtual) return;
+  
+  const { usuario, solicitacao } = solicitacaoAtual;
+  solicitacao.status = "rejeitada";
+  
+  if (await updateBin(CONFIG.DATA_BIN_ID, pontosDB)) {
+    showModal("Atenção", "❌ Solicitação rejeitada.");
+    modalDetalhesSolicitacao.classList.add("hidden");
+    modalDetalhesSolicitacao.classList.remove("flex");
+    atualizarBadgeNotificacoes();
+    renderizarNotificacoes();
+  }
+});
+
+// Atualizar badge automaticamente
+setInterval(async () => {
+  pontosDB = await getBin(CONFIG.DATA_BIN_ID);
+  atualizarBadgeNotificacoes();
+}, 30000); // A cada 30 segundos
+
+/**********************
+ * LOCAL CONFIG
  **********************/
 function atualizarLocalTexto() {
   const local = configDB.local_ponto;
@@ -293,7 +518,6 @@ function atualizarLocalTexto() {
   enderecoInput.value = local.endereco || "";
 }
 
-// Usar localização atual
 usarLocalAtual.addEventListener("click", () => {
   if (!navigator.geolocation) return showModal("Erro", "Seu navegador não suporta geolocalização!");
   navigator.geolocation.getCurrentPosition((pos) => {
@@ -306,7 +530,6 @@ usarLocalAtual.addEventListener("click", () => {
   });
 });
 
-// Salvar local
 salvarLocal.addEventListener("click", async () => {
   const local = configDB.local_ponto;
   if (!local.lat || !local.lng) return showModal("Erro", "Local inválido.");
@@ -314,7 +537,6 @@ salvarLocal.addEventListener("click", async () => {
     showModal("Sucesso", "✅ Local salvo!");
 });
 
-// Autocomplete enquanto digita
 let debounceTimeout;
 enderecoInput.addEventListener("input", () => {
   const query = enderecoInput.value.trim();
@@ -359,10 +581,12 @@ document.addEventListener("click", e => {
 function carregarUsuarios() {
   selectUsuario.innerHTML = '<option value="">-- Selecione --</option>';
   Object.keys(pontosDB).forEach(u => {
-    const opt = document.createElement("option");
-    opt.value = u;
-    opt.textContent = u;
-    selectUsuario.appendChild(opt);
+    if (u !== "solicitacoes" && u !== "usuarios") {
+      const opt = document.createElement("option");
+      opt.value = u;
+      opt.textContent = u;
+      selectUsuario.appendChild(opt);
+    }
   });
 }
 selectUsuario.addEventListener("change", e => {
@@ -399,26 +623,23 @@ function renderizarPontos() {
     return;
   }
 
-  // 🔹 Container com botões de exportação
   const exportContainer = document.createElement("div");
   exportContainer.className = "flex justify-end mb-3 gap-2";
 
   exportContainer.innerHTML = `
-    <button id="exportExcel" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-sm transition">Exportar Excel</button>
-    <button id="previsualizarBtn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">Pré-visualizar PDF</button>
-    <button id="exportPDF" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-sm transition">Exportar PDF</button>
+    <button id="exportExcel" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-sm transition">📊 Exportar Excel</button>
+    <button id="previsualizarBtn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">👁️ Pré-visualizar PDF</button>
+    <button id="exportPDF" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-sm transition">📄 Exportar PDF</button>
   `;
 
   listaPontosEdit.appendChild(exportContainer);
 
-  // 🔹 Agrupar pontos por data
   const agrupado = {};
   pontos.forEach(p => {
     if (!agrupado[p.data]) agrupado[p.data] = [];
     agrupado[p.data].push(p);
   });
 
-  // 🔹 Criar tabela
   const table = document.createElement("table");
   table.id = "tabelaPontos";
   table.className = "w-full text-sm border border-gray-700 rounded-lg overflow-hidden";
@@ -462,7 +683,6 @@ function renderizarPontos() {
 
   listaPontosEdit.appendChild(table);
 
-  // 🔹 Delegação de eventos para exportação e edição
   listaPontosEdit.addEventListener("click", (e) => {
     const btn = e.target;
 
@@ -488,7 +708,6 @@ function renderizarPontos() {
     }
   }, { once: false });
 }
-
 
 /**********************
  * MODAL EDITAR DIA
@@ -571,38 +790,15 @@ abaPontosUsuarios.addEventListener("click", () => {
   tabPontosUsuarios.classList.remove("hidden");
   tabLocalConfig.classList.add("hidden");
 });
-</script>
-<!-- Script para exportar excel-->
- <script>
-    // 🔸 Exportar para Excel
-function exportarExcel(usuario, mesAno) {
-  const tabela = document.getElementById("tabelaPontos");
-  const linhas = [["Data", "Horários Registrados"]];
-
-  for (let i = 1; i < tabela.rows.length; i++) {
-    const data = tabela.rows[i].cells[0].innerText;
-    const horarios = tabela.rows[i].cells[1].innerText;
-    linhas.push([data, horarios]);
-  }
-
-  let csvContent = "data:text/csv;charset=utf-8," + linhas.map(e => e.join(";")).join("\n");
-  const link = document.createElement("a");
-  link.href = encodeURI(csvContent);
-  link.download = `${usuario}_${mesAno}.csv`;
-  link.click();
-}
 
 /**********************
  * EXPORTAR PDF E EXCEL
  **********************/
-
-// 🔹 Função para gerar PDF
 function exportarPDF(usuario, mesAno) {
   const doc = new window.jspdf.jsPDF();
   const pontos = pontosDB[usuario][mesAno] || [];
   const dias = {};
 
-  // Agrupar pontos por data
   pontos.forEach(p => {
     if (!dias[p.data]) dias[p.data] = [];
     dias[p.data].push(p);
@@ -615,9 +811,23 @@ function exportarPDF(usuario, mesAno) {
     return new Date(y1,m1-1,d1) - new Date(y2,m2-1,d2);
   }).forEach(data => {
     const colunas = ["", "", "", ""];
-    dias[data].forEach((pt, i) => {
-      if (pt.tipo.toLowerCase().includes("entrada")) colunas[i] = pt.hora;
-      if (pt.tipo.toLowerCase().includes("saída") || pt.tipo.toLowerCase().includes("saida")) colunas[i] = pt.hora;
+    let entradaCount = 0;
+    let saidaCount = 0;
+    
+    dias[data].forEach((pt) => {
+      const tipoLower = pt.tipo.toLowerCase();
+      // É entrada se contém "entrada" OU "retorno"
+      const isEntrada = tipoLower.includes("entrada") || tipoLower.includes("retorno");
+      // É saída se contém "saída" ou "saida"
+      const isSaida = tipoLower.includes("saída") || tipoLower.includes("saida");
+      
+      if (isEntrada) {
+        colunas[entradaCount * 2] = pt.hora; // Entrada 1 = índice 0, Entrada 2 = índice 2
+        entradaCount++;
+      } else if (isSaida) {
+        colunas[saidaCount * 2 + 1] = pt.hora; // Saída 1 = índice 1, Saída 2 = índice 3
+        saidaCount++;
+      }
     });
     body.push([data, ...colunas]);
   });
@@ -644,21 +854,6 @@ function exportarPDF(usuario, mesAno) {
   return doc;
 }
 
-// 🔹 Pré-visualizar PDF
-document.getElementById("previsualizarBtn").addEventListener("click", () => {
-  if (!usuarioSelecionado || !mesAnoSelecionado) return showModal("Atenção", "Selecione um usuário e mês/ano!");
-  const doc = exportarPDF(usuarioSelecionado, mesAnoSelecionado);
-  window.open(doc.output("bloburl"), "_blank"); // abre em nova aba
-});
-
-// 🔹 Exportar PDF
-document.getElementById("exportPDF").addEventListener("click", () => {
-  if (!usuarioSelecionado || !mesAnoSelecionado) return showModal("Atenção", "Selecione um usuário e mês/ano!");
-  const doc = exportarPDF(usuarioSelecionado, mesAnoSelecionado);
-  doc.save(`${usuarioSelecionado}_${mesAnoSelecionado}.pdf`);
-});
-
-// 🔹 Exportar Excel (CSV)
 function exportarExcel(usuario, mesAno) {
   const pontos = pontosDB[usuario][mesAno] || [];
   const dias = {};
@@ -673,13 +868,26 @@ function exportarExcel(usuario, mesAno) {
     const [d2,m2,y2] = b.split('/');
     return new Date(y1,m1-1,d1) - new Date(y2,m2-1,d2);
   }).forEach(data => {
-    const p = dias[data];
     const colunas = ["", "", "", ""];
-    p.forEach((pt, i) => {
-      if (pt.tipo.toLowerCase().includes("entrada")) colunas[i] = pt.hora;
-      if (pt.tipo.toLowerCase().includes("saída") || pt.tipo.toLowerCase().includes("saida")) colunas[i] = pt.hora;
+    let entradaCount = 0;
+    let saidaCount = 0;
+    
+    dias[data].forEach((pt) => {
+      const tipoLower = pt.tipo.toLowerCase();
+      // É entrada se contém "entrada" OU "retorno"
+      const isEntrada = tipoLower.includes("entrada") || tipoLower.includes("retorno");
+      // É saída se contém "saída" ou "saida"
+      const isSaida = tipoLower.includes("saída") || tipoLower.includes("saida");
+      
+      if (isEntrada) {
+        colunas[entradaCount * 2] = pt.hora; // Entrada 1 = índice 0, Entrada 2 = índice 2
+        entradaCount++;
+      } else if (isSaida) {
+        colunas[saidaCount * 2 + 1] = pt.hora; // Saída 1 = índice 1, Saída 2 = índice 3
+        saidaCount++;
+      }
     });
-    linhas.push([data, ...colunas]);
+    body.push([data, ...colunas]);
   });
 
   let csvContent = "data:text/csv;charset=utf-8," + linhas.map(e => e.join(";")).join("\n");
@@ -688,13 +896,8 @@ function exportarExcel(usuario, mesAno) {
   link.download = `${usuario}_${mesAno}.csv`;
   link.click();
 }
-
-document.getElementById("exportExcel").addEventListener("click", () => {
-  if (!usuarioSelecionado || !mesAnoSelecionado) return showModal("Atenção", "Selecione um usuário e mês/ano!");
-  exportarExcel(usuarioSelecionado, mesAnoSelecionado);
-});
- </script>
- <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
 </body>
