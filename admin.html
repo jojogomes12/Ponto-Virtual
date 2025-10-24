@@ -169,7 +169,7 @@
 
   <!-- Modal Detalhes Solicitação -->
   <div id="modalDetalhesSolicitacao" class="fixed inset-0 bg-black/60 hidden justify-center items-center z-[60]">
-    <div class="bg-darkcard border border-gray-700 rounded-xl p-6 max-w-2xl w-full">
+    <div class="bg-darkcard border border-gray-700 rounded-xl p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto">
       <h3 class="text-lg font-semibold mb-4 text-accent">Detalhes da Solicitação</h3>
       <div id="detalhesSolicitacaoContent" class="mb-4"></div>
       <div class="flex gap-3 mt-4">
@@ -188,6 +188,7 @@ const CONFIG = {
   JSONBIN_API_KEY: "$2a$10$KDi5Sc6Jkhx12a3rQxYSIug08jdJNHTIU1xEq7hbeJCubqyZSQ3ii",
   DATA_BIN_ID: "68f71cb3ae596e708f20d29a",
   CONFIG_BIN_ID: "68e3c7b143b1c97be95c6112",
+  SOLICITACOES_BIN_ID: "68f73b29d0ea881f40b048a1",
   JSONBIN_URL: "https://api.jsonbin.io/v3/b/",
   ADMIN_USER: "admin",
   ADMIN_PASS: "admin123"
@@ -198,6 +199,7 @@ const CONFIG = {
  **********************/
 let pontosDB = {};
 let configDB = {};
+let solicitacoesDB = {};
 let usuarioSelecionado = null;
 let mesAnoSelecionado = null;
 let diaEditando = null;
@@ -311,9 +313,11 @@ loginAdminBtn.addEventListener("click", async () => {
   if (user === CONFIG.ADMIN_USER && pass === CONFIG.ADMIN_PASS) {
     pontosDB = await getBin(CONFIG.DATA_BIN_ID);
     configDB = await getBin(CONFIG.CONFIG_BIN_ID);
+    solicitacoesDB = await getBin(CONFIG.SOLICITACOES_BIN_ID);
+    
     if (!configDB.local_ponto)
       configDB.local_ponto = { lat: -22.970349, lng: -42.952487, endereco: "" };
-    if (!pontosDB.solicitacoes) pontosDB.solicitacoes = {};
+    
     loginAdmin.classList.add("hidden");
     painelAdmin.classList.remove("hidden");
     carregarUsuarios();
@@ -328,9 +332,9 @@ logoutAdminBtn.addEventListener("click", () => location.reload());
  **********************/
 function atualizarBadgeNotificacoes() {
   let total = 0;
-  Object.keys(pontosDB.solicitacoes || {}).forEach(usuario => {
-    if (Array.isArray(pontosDB.solicitacoes[usuario])) {
-      total += pontosDB.solicitacoes[usuario].filter(s => s.status === "pendente").length;
+  Object.keys(solicitacoesDB).forEach(usuario => {
+    if (Array.isArray(solicitacoesDB[usuario])) {
+      total += solicitacoesDB[usuario].filter(s => s.status === "pendente").length;
     }
   });
   
@@ -357,9 +361,9 @@ function renderizarNotificacoes() {
   listaNotificacoes.innerHTML = "";
   
   let temPendentes = false;
-  Object.keys(pontosDB.solicitacoes || {}).forEach(usuario => {
-    if (Array.isArray(pontosDB.solicitacoes[usuario])) {
-      pontosDB.solicitacoes[usuario].forEach(solicitacao => {
+  Object.keys(solicitacoesDB).forEach(usuario => {
+    if (Array.isArray(solicitacoesDB[usuario])) {
+      solicitacoesDB[usuario].forEach((solicitacao, index) => {
         if (solicitacao.status === "pendente") {
           temPendentes = true;
           const card = document.createElement("div");
@@ -373,14 +377,14 @@ function renderizarNotificacoes() {
               <span class="bg-yellow-600 text-white text-xs px-2 py-1 rounded">⏳ Pendente</span>
             </div>
             <p class="text-sm text-gray-300 mb-2">
-              <strong>Data:</strong> ${solicitacao.data}
+              <strong>Dias:</strong> ${solicitacao.dias.join(", ")}
             </p>
             <p class="text-sm text-gray-300 mb-2">
               <strong>Alterações:</strong> ${solicitacao.alteracoes.length} horário(s)
             </p>
             ${solicitacao.observacao ? `<p class="text-sm text-gray-400 italic border-l-2 border-gray-600 pl-2 mt-2">"${solicitacao.observacao}"</p>` : ""}
           `;
-          card.addEventListener("click", () => abrirDetalhesSolicitacao(usuario, solicitacao));
+          card.addEventListener("click", () => abrirDetalhesSolicitacao(usuario, solicitacao, index));
           listaNotificacoes.appendChild(card);
         }
       });
@@ -392,8 +396,14 @@ function renderizarNotificacoes() {
   }
 }
 
-function abrirDetalhesSolicitacao(usuario, solicitacao) {
-  solicitacaoAtual = { usuario, solicitacao };
+function abrirDetalhesSolicitacao(usuario, solicitacao, indexSolicitacao) {
+  solicitacaoAtual = { usuario, solicitacao, indexSolicitacao };
+  
+  const dia = solicitacao.dias[0];
+  const mesAno = new Date().toLocaleString("pt-BR", { month: "2-digit", year: "numeric" }).replace("/", "-");
+  
+  // Buscar pontos atuais do dia
+  const pontosAtuais = pontosDB[usuario]?.[mesAno]?.filter(p => p.data === dia) || [];
   
   detalhesSolicitacaoContent.innerHTML = `
     <div class="space-y-3">
@@ -404,29 +414,34 @@ function abrirDetalhesSolicitacao(usuario, solicitacao) {
       
       <div class="bg-[#111113] p-3 rounded border border-gray-700">
         <p class="text-sm text-gray-400">Data:</p>
-        <p class="text-gray-300">${solicitacao.data}</p>
+        <p class="text-gray-300">${dia}</p>
       </div>
       
       <div class="bg-[#111113] p-3 rounded border border-gray-700">
         <p class="text-sm text-gray-400 mb-2">Alterações solicitadas:</p>
         <div class="space-y-2">
-          ${solicitacao.alteracoes.map(alt => `
+          ${solicitacao.alteracoes.map(alt => {
+            // Encontrar o ponto atual correspondente
+            const pontoAtual = pontosAtuais.find(p => p.tipo === alt.tipo);
+            const horaAtual = pontoAtual ? pontoAtual.hora : "--:--";
+            
+            return `
             <div class="bg-[#0a0a0c] p-2 rounded">
               <p class="text-xs text-gray-400 mb-1">${alt.tipo}</p>
               <div class="flex items-center gap-2 text-sm">
-                <span class="text-red-400 line-through font-mono">${alt.horaAtual}</span>
+                <span class="text-red-400 line-through font-mono">${horaAtual}</span>
                 <span class="text-gray-500">→</span>
-                <span class="text-accent font-mono font-semibold">${alt.horaNova}</span>
+                <span class="text-accent font-mono font-semibold">${alt.novaHora}</span>
               </div>
             </div>
-          `).join("")}
+          `}).join("")}
         </div>
       </div>
       
       ${solicitacao.observacao ? `
         <div class="bg-[#111113] p-3 rounded border border-gray-700">
-          <p class="text-sm text-gray-400">Observação:</p>
-          <p class="text-gray-300 italic">"${solicitacao.observacao}"</p>
+          <p class="text-sm text-gray-400">Motivo da Alteração:</p>
+          <p class="text-gray-300 italic mt-1">"${solicitacao.observacao}"</p>
         </div>
       ` : ""}
       
@@ -449,57 +464,78 @@ cancelDetalhesSolicitacaoBtn.addEventListener("click", () => {
 aprovarSolicitacaoBtn.addEventListener("click", async () => {
   if (!solicitacaoAtual) return;
   
-  const { usuario, solicitacao } = solicitacaoAtual;
-  const mesAno = solicitacao.mesAno;
+  const { usuario, solicitacao, indexSolicitacao } = solicitacaoAtual;
+  const dia = solicitacao.dias[0];
+  const mesAno = new Date().toLocaleString("pt-BR", { month: "2-digit", year: "numeric" }).replace("/", "-");
   
-  // Aplicar alterações nos pontos
-  if (!pontosDB[usuario] || !pontosDB[usuario][mesAno]) {
-    showModal("Erro", "Dados do usuário não encontrados.");
-    return;
-  }
+  // Verificar se o usuário e mês existem
+  if (!pontosDB[usuario]) pontosDB[usuario] = {};
+  if (!pontosDB[usuario][mesAno]) pontosDB[usuario][mesAno] = [];
   
-  // Atualizar cada ponto alterado
+  // Aplicar cada alteração
   solicitacao.alteracoes.forEach(alteracao => {
-    const indice = alteracao.indice;
-    if (pontosDB[usuario][mesAno][indice]) {
-      pontosDB[usuario][mesAno][indice].hora = alteracao.horaNova;
+    // Buscar o ponto correspondente pelo tipo e data
+    const pontoIndex = pontosDB[usuario][mesAno].findIndex(p => 
+      p.data === dia && p.tipo === alteracao.tipo
+    );
+    
+    if (pontoIndex !== -1) {
+      // Atualizar hora existente
+      pontosDB[usuario][mesAno][pontoIndex].hora = alteracao.novaHora;
+    } else {
+      // Criar novo ponto se não existir
+      pontosDB[usuario][mesAno].push({
+        data: dia,
+        hora: alteracao.novaHora,
+        tipo: alteracao.tipo,
+        status: "aprovado"
+      });
     }
   });
   
   // Atualizar status da solicitação
-  solicitacao.status = "aprovada";
+  solicitacoesDB[usuario][indexSolicitacao].status = "aprovada";
+  solicitacoesDB[usuario][indexSolicitacao].dataAprovacao = new Date().toLocaleString("pt-BR");
   
   // Salvar alterações
-  const sucesso = await updateBin(CONFIG.DATA_BIN_ID, pontosDB);
+  const sucessoPontos = await updateBin(CONFIG.DATA_BIN_ID, pontosDB);
+  const sucessoSolicitacoes = await updateBin(CONFIG.SOLICITACOES_BIN_ID, solicitacoesDB);
   
-  if (sucesso) {
+  if (sucessoPontos && sucessoSolicitacoes) {
     showModal("Sucesso", "✅ Solicitação aprovada e pontos atualizados!");
     modalDetalhesSolicitacao.classList.add("hidden");
     modalDetalhesSolicitacao.classList.remove("flex");
     atualizarBadgeNotificacoes();
     renderizarNotificacoes();
     if (usuarioSelecionado && mesAnoSelecionado) renderizarPontos();
+  } else {
+    showModal("Erro", "❌ Erro ao aprovar solicitação. Tente novamente.");
   }
 });
 
 rejeitarSolicitacaoBtn.addEventListener("click", async () => {
   if (!solicitacaoAtual) return;
   
-  const { usuario, solicitacao } = solicitacaoAtual;
-  solicitacao.status = "rejeitada";
+  const { usuario, indexSolicitacao } = solicitacaoAtual;
   
-  if (await updateBin(CONFIG.DATA_BIN_ID, pontosDB)) {
+  // Atualizar status da solicitação
+  solicitacoesDB[usuario][indexSolicitacao].status = "rejeitada";
+  solicitacoesDB[usuario][indexSolicitacao].dataRejeicao = new Date().toLocaleString("pt-BR");
+  
+  if (await updateBin(CONFIG.SOLICITACOES_BIN_ID, solicitacoesDB)) {
     showModal("Atenção", "❌ Solicitação rejeitada.");
     modalDetalhesSolicitacao.classList.add("hidden");
     modalDetalhesSolicitacao.classList.remove("flex");
     atualizarBadgeNotificacoes();
     renderizarNotificacoes();
+  } else {
+    showModal("Erro", "❌ Erro ao rejeitar solicitação. Tente novamente.");
   }
 });
 
 // Atualizar badge automaticamente
 setInterval(async () => {
-  pontosDB = await getBin(CONFIG.DATA_BIN_ID);
+  solicitacoesDB = await getBin(CONFIG.SOLICITACOES_BIN_ID);
   atualizarBadgeNotificacoes();
 }, 30000); // A cada 30 segundos
 
@@ -816,16 +852,14 @@ function exportarPDF(usuario, mesAno) {
     
     dias[data].forEach((pt) => {
       const tipoLower = pt.tipo.toLowerCase();
-      // É entrada se contém "entrada" OU "retorno"
       const isEntrada = tipoLower.includes("entrada") || tipoLower.includes("retorno");
-      // É saída se contém "saída" ou "saida"
       const isSaida = tipoLower.includes("saída") || tipoLower.includes("saida");
       
       if (isEntrada) {
-        colunas[entradaCount * 2] = pt.hora; // Entrada 1 = índice 0, Entrada 2 = índice 2
+        colunas[entradaCount * 2] = pt.hora;
         entradaCount++;
       } else if (isSaida) {
-        colunas[saidaCount * 2 + 1] = pt.hora; // Saída 1 = índice 1, Saída 2 = índice 3
+        colunas[saidaCount * 2 + 1] = pt.hora;
         saidaCount++;
       }
     });
@@ -874,20 +908,18 @@ function exportarExcel(usuario, mesAno) {
     
     dias[data].forEach((pt) => {
       const tipoLower = pt.tipo.toLowerCase();
-      // É entrada se contém "entrada" OU "retorno"
       const isEntrada = tipoLower.includes("entrada") || tipoLower.includes("retorno");
-      // É saída se contém "saída" ou "saida"
       const isSaida = tipoLower.includes("saída") || tipoLower.includes("saida");
       
       if (isEntrada) {
-        colunas[entradaCount * 2] = pt.hora; // Entrada 1 = índice 0, Entrada 2 = índice 2
+        colunas[entradaCount * 2] = pt.hora;
         entradaCount++;
       } else if (isSaida) {
-        colunas[saidaCount * 2 + 1] = pt.hora; // Saída 1 = índice 1, Saída 2 = índice 3
+        colunas[saidaCount * 2 + 1] = pt.hora;
         saidaCount++;
       }
     });
-    body.push([data, ...colunas]);
+    linhas.push([data, ...colunas]);
   });
 
   let csvContent = "data:text/csv;charset=utf-8," + linhas.map(e => e.join(";")).join("\n");
