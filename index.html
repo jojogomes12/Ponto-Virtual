@@ -179,7 +179,6 @@
     });
 
     // Carregar pontos
-   // nova função para carregar pontos simplificados
 async function carregarPontos() {
   const pontosDB = await getBin(CONFIG.DATA_BIN_ID);
   const mesAno = new Date().toLocaleString("pt-BR", { month: "2-digit", year: "numeric" }).replace("/", "-");
@@ -236,6 +235,14 @@ function abrirModalDia(dia, pontosDia) {
     </div>
   `;
 
+  // campo de observação/motivo
+  modalDiaContent.innerHTML += `
+    <div class="mt-4">
+      <label class="block text-sm font-medium mb-1">Motivo da Alteração:</label>
+      <textarea id="observacaoInput" rows="3" placeholder="Explique o motivo da solicitação..." class="bg-gray-700 rounded px-3 py-2 text-white w-full resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"></textarea>
+    </div>
+  `;
+
   modalDiaOverlay.classList.remove("hidden");
   setTimeout(()=>{
     modalDiaOverlay.classList.add("flex");
@@ -244,31 +251,42 @@ function abrirModalDia(dia, pontosDia) {
   },10);
 
   enviarSolicitacaoBtn.onclick = async () => {
-  // Pegar os inputs do modal
-  const inputs = modalDiaContent.querySelectorAll("input[data-tipo]");
-  const alteracoes = [];
-  inputs.forEach(inp => {
-    if (inp.value) alteracoes.push({ tipo: inp.dataset.tipo, novaHora: inp.value });
-  });
+    // Pegar os inputs do modal
+    const inputs = modalDiaContent.querySelectorAll("input[data-tipo]");
+    const alteracoes = [];
+    inputs.forEach(inp => {
+      if (inp.value) alteracoes.push({ tipo: inp.dataset.tipo, novaHora: inp.value });
+    });
 
-  // Hora extra
-  const horaExtra = document.getElementById("horaExtraInput")?.value;
-  if (horaExtra) alteracoes.push({ tipo: "Hora Extra", novaHora: horaExtra });
+    // Hora extra
+    const horaExtra = document.getElementById("horaExtraInput")?.value;
+    if (horaExtra) alteracoes.push({ tipo: "Hora Extra", novaHora: horaExtra });
 
-  // Observação
-  const observacao = document.getElementById("observacaoInput")?.value || "";
+    // Observação (OBRIGATÓRIA)
+    const observacao = document.getElementById("observacaoInput")?.value.trim() || "";
+    
+    // Validar se há alterações e motivo
+    if (alteracoes.length === 0) {
+      showModal("Aviso", "⚠️ Nenhuma alteração foi solicitada.");
+      return;
+    }
+    
+    if (!observacao) {
+      showModal("Aviso", "⚠️ Por favor, explique o motivo da alteração.");
+      return;
+    }
 
-  // Dias selecionados (o modalDiaTitle tem o dia)
-  const dias = [modalDiaTitle.textContent.split(" - ")[1]];
+    // Dias selecionados (o modalDiaTitle tem o dia)
+    const dias = [modalDiaTitle.textContent.split(" - ")[1]];
 
-  // Chamar a função de envio
-  await enviarSolicitacao(usuario, dias, alteracoes, observacao);
+    // Chamar a função de envio
+    await enviarSolicitacao(usuario, dias, alteracoes, observacao);
 
-  // Fechar modal
-  closeModalDia();
-};
-  
+    // Fechar modal
+    closeModalDia();
+  };
 }
+
 async function enviarSolicitacao(usuario, dias, alteracoes, observacao="") {
   const SOLICITACOES_BIN_ID = "68f73b29d0ea881f40b048a1";
 
@@ -278,7 +296,7 @@ async function enviarSolicitacao(usuario, dias, alteracoes, observacao="") {
   if (!dbSolicitacoes[usuario]) dbSolicitacoes[usuario] = [];
 
   const novaSolicitacao = {
-    id: "req-" + Date.now(), // id único
+    id: "req-" + Date.now(),
     dias,
     alteracoes,
     observacao,
@@ -289,10 +307,9 @@ async function enviarSolicitacao(usuario, dias, alteracoes, observacao="") {
   dbSolicitacoes[usuario].push(novaSolicitacao);
 
   const success = await updateBin(SOLICITACOES_BIN_ID, dbSolicitacoes);
-  if (success) showModal("Sucesso","✅ Solicitação enviada!");
-  else showModal("Erro","Falha ao enviar solicitação.");
+  if (success) showModal("Sucesso","✅ Solicitação enviada com sucesso!");
+  else showModal("Erro","❌ Falha ao enviar solicitação. Tente novamente.");
 }
-
 
 // fechar modal
 function closeModalDia() {
@@ -307,39 +324,6 @@ closeModalDiaBtn.addEventListener("click", closeModalDia);
 modalDiaOverlay.addEventListener("click", e=>{
   if(e.target===modalDiaOverlay) closeModalDia();
 });
-
-// registrar ponto agora já com status: "pendente"
-async function registrarPonto(latitude, longitude) {
-  const pontosDB = await getBin(CONFIG.DATA_BIN_ID);
-  const mesAno = new Date().toLocaleString("pt-BR", { month: "2-digit", year: "numeric" }).replace("/", "-");
-  const hoje = new Date().toLocaleDateString("pt-BR");
-
-  if (!pontosDB[usuario]) pontosDB[usuario] = {};
-  if (!pontosDB[usuario][mesAno]) pontosDB[usuario][mesAno] = [];
-
-  const pontos = pontosDB[usuario][mesAno];
-  const pontosHoje = pontos.filter(p => p.data === hoje);
-  if (pontosHoje.length >= 4) return showModal("Aviso","⚠️ Já registrou os 4 pontos de hoje.");
-
-  const hora = new Date().toLocaleTimeString("pt-BR");
-  const tipo = etapas[pontosHoje.length];
-
-  pontos.push({
-    data: hoje,
-    hora,
-    tipo,
-    lat: latitude.toFixed(6),
-    lng: longitude.toFixed(6),
-    status: "pendente"
-  });
-
-  const success = await updateBin(CONFIG.DATA_BIN_ID, pontosDB);
-  if(success){
-    await carregarPontos();
-    showModal("Sucesso", `✅ Ponto registrado com sucesso!\n${tipo} - ${hora}`);
-  } else showModal("Erro","Falha ao salvar o ponto.");
-}
-
 
     // Bater ponto com verificação de localização
  pontoBtn.addEventListener("click", async () => {
@@ -450,45 +434,7 @@ async function registrarPonto(latitude, longitude) {
         }
       );
     });
-
-    // Registrar ponto
-    async function registrarPonto(latitude, longitude) {
-      const pontosDB = await getBin(CONFIG.DATA_BIN_ID);
-      const mesAno = new Date().toLocaleString("pt-BR", { month: "2-digit", year: "numeric" }).replace("/", "-");
-      const hoje = new Date().toLocaleDateString("pt-BR");
-
-      if (!pontosDB[usuario]) pontosDB[usuario] = {};
-      if (!pontosDB[usuario][mesAno]) pontosDB[usuario][mesAno] = [];
-
-      const pontos = pontosDB[usuario][mesAno];
-      const pontosHoje = pontos.filter(p => p.data === hoje);
-
-      if (pontosHoje.length >= 4) {
-        return showModal("Aviso", "⚠️ Você já registrou os 4 pontos de hoje.");
-      }
-
-      const hora = new Date().toLocaleTimeString("pt-BR");
-      const tipo = etapas[pontosHoje.length];
-
-      pontos.push({
-        data: hoje,
-        hora,
-        tipo,
-        lat: latitude.toFixed(6),
-        lng: longitude.toFixed(6)
-      });
-
-      const success = await updateBin(CONFIG.DATA_BIN_ID, pontosDB);
-      
-      if (success) {
-        await carregarPontos();
-        showModal("Sucesso", `✅ Ponto registrado com sucesso!\n${tipo} - ${hora}`);
-      } else {
-        showModal("Erro", "Falha ao salvar o ponto. Tente novamente.");
-      }
-    }
   </script>
 
 </body>
 </html>
-
