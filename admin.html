@@ -472,25 +472,22 @@ aprovarSolicitacaoBtn.addEventListener("click", async () => {
   if (!pontosDB[usuario]) pontosDB[usuario] = {};
   if (!pontosDB[usuario][mesAno]) pontosDB[usuario][mesAno] = [];
   
-  // Aplicar cada alteração
-  solicitacao.alteracoes.forEach(alteracao => {
-    // Buscar o ponto correspondente pelo tipo e data
-    const pontoIndex = pontosDB[usuario][mesAno].findIndex(p => 
-      p.data === dia && p.tipo === alteracao.tipo
-    );
-    
-    if (pontoIndex !== -1) {
-      // Atualizar hora existente
-      pontosDB[usuario][mesAno][pontoIndex].hora = alteracao.novaHora;
-    } else {
-      // Criar novo ponto se não existir
-      pontosDB[usuario][mesAno].push({
-        data: dia,
-        hora: alteracao.novaHora,
-        tipo: alteracao.tipo,
-        status: "aprovado"
-      });
-    }
+  // REMOVER TODOS os pontos do dia específico antes de aplicar as alterações
+  pontosDB[usuario][mesAno] = pontosDB[usuario][mesAno].filter(p => p.data !== dia);
+  
+  // Ordenar as alterações por hora para garantir sequência correta
+  const alteracoesOrdenadas = solicitacao.alteracoes.sort((a, b) => {
+    return a.novaHora.localeCompare(b.novaHora);
+  });
+  
+  // ADICIONAR os novos pontos alternando entre Entrada e Saída
+  const tiposCorretos = ["Entrada", "Saída", "Entrada", "Saída"];
+  alteracoesOrdenadas.forEach((alteracao, index) => {
+    pontosDB[usuario][mesAno].push({
+      data: dia,
+      hora: alteracao.novaHora,
+      tipo: tiposCorretos[index] || "Entrada" // Usa o tipo correto baseado na posição
+    });
   });
   
   // Atualizar status da solicitação
@@ -796,8 +793,25 @@ function renderTabelaPontosDia() {
   });
 }
 
+
 addHoraBtn.addEventListener("click", () => {
-  pontosEditDia.push({ data: diaEditando, hora: "08:00", tipo: "Entrada" });
+  // Detectar o próximo tipo baseado no último registro
+  let proximoTipo = "Entrada";
+  
+  if (pontosEditDia.length > 0) {
+    const ultimoPonto = pontosEditDia[pontosEditDia.length - 1];
+    const ultimoTipo = ultimoPonto.tipo.toLowerCase();
+    
+    // Se o último foi Entrada ou Retorno, o próximo é Saída
+    if (ultimoTipo.includes("entrada") || ultimoTipo.includes("retorno")) {
+      proximoTipo = "Saída";
+    } else {
+      // Se o último foi Saída, o próximo é Entrada
+      proximoTipo = "Entrada";
+    }
+  }
+  
+  pontosEditDia.push({ data: diaEditando, hora: "08:00", tipo: proximoTipo });
   renderTabelaPontosDia();
 });
 
